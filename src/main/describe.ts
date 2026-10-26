@@ -1,3 +1,4 @@
+import { t } from '../shared/i18n'
 /**
  * Per-frame prompt generation with Claude vision + structured output.
  *
@@ -112,12 +113,12 @@ export async function describeFrame(
     try {
       await access(framePngPath)
     } catch {
-      return { ok: false, error: 'Frame image not found — re-extract the frame and try again.' }
+      return { ok: false, error: t('Frame image not found — re-extract the frame and try again.') }
     }
     scaled = await downscale(framePngPath)
     const bytes = await readFile(scaled.path)
     if (bytes.byteLength > 20 * 1024 * 1024) {
-      return { ok: false, error: 'Frame image is larger than 20MB — try a smaller crop.' }
+      return { ok: false, error: t('Frame image is larger than 20MB — try a smaller crop.') }
     }
     const isJpeg = scaled.path.endsWith('.jpg') || scaled.path.endsWith('.jpeg')
     const data = bytes.toString('base64')
@@ -153,18 +154,18 @@ export async function describeFrame(
     })
 
     if (response.stop_reason === 'refusal') {
-      return { ok: false, error: 'The model declined to analyze this image.' }
+      return { ok: false, error: t('The model declined to analyze this image.') }
     }
     const text = response.content.find((b) => b.type === 'text')
     if (!text || text.type !== 'text') {
-      return { ok: false, error: 'No description returned — try a clearer frame.' }
+      return { ok: false, error: t('No description returned — try a clearer frame.') }
     }
     const description = JSON.parse(text.text) as FrameDescription
     return { ok: true, description }
   } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) return { ok: false, error: AUTH_HELP }
+    if (e instanceof Anthropic.AuthenticationError) return { ok: false, error: t(AUTH_HELP) }
     if (e instanceof Error && /apiKey|api key|ANTHROPIC_API_KEY/i.test(e.message)) {
-      return { ok: false, error: AUTH_HELP }
+      return { ok: false, error: t(AUTH_HELP) }
     }
     if (e instanceof Anthropic.APIError) return { ok: false, error: `Claude API error: ${e.message}` }
     return { ok: false, error: e instanceof Error ? e.message : String(e) }

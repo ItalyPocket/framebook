@@ -19,11 +19,22 @@ function stillPathFor(folder: string, frameId: string): string {
 }
 
 /** Ensure a full-res still PNG exists on disk for a frame; return its abs path. */
-export async function ensureStill(frameId: string): Promise<string | null> {
+const pendingStills = new Map<string, Promise<string | null>>()
+
+export function ensureStill(frameId: string, snapshot?: Frame): Promise<string | null> {
+  const key = `${useStore.getState().projectFolder}:${frameId}`
+  const pending = pendingStills.get(key)
+  if (pending) return pending
+  const task = extractStill(frameId, snapshot).finally(() => pendingStills.delete(key))
+  pendingStills.set(key, task)
+  return task
+}
+
+async function extractStill(frameId: string, snapshot?: Frame): Promise<string | null> {
   const s = useStore.getState()
   const existing = s.stills[frameId]
   if (existing) return existing.path
-  const frame = s.frame(frameId)
+  const frame = snapshot ?? s.frame(frameId)
   if (!frame || !s.projectFolder) return null
   const media = s.media(frame.mediaId)
   if (!media) return null
@@ -41,6 +52,7 @@ export async function ensureStill(frameId: string): Promise<string | null> {
     const r = await window.sbr.extractFrame(abs, frame.timeS, outPng)
     if (!r.ok) return null
   }
+  if (useStore.getState().projectFolder !== s.projectFolder) return null
   useStore.getState().setStill(frameId, { path: outPng, width: media.width, height: media.height })
   return outPng
 }
@@ -107,13 +119,13 @@ export async function compositeAnnotated(frame: Frame, stillPath: string, w: num
 }
 
 /** Build the export inputs for the whole board (extracts any missing stills). */
-export async function buildExportInputs(): Promise<ExportFrameInput[]> {
+export async function buildExportInputs(frames?: Frame[]): Promise<ExportFrameInput[]> {
   const s = useStore.getState()
-  const ordered = s.orderedFrames()
+  const ordered = frames ?? s.orderedFrames()
   const inputs: ExportFrameInput[] = []
   for (const frame of ordered) {
-    const still = await ensureStill(frame.id)
-    if (!still) continue
+    const still = await ensureStill(frame.id, frame)
+    if (!still) throw new Error(`Cannot extract frame: ${frame.label || frame.id}`)
     const media = s.media(frame.mediaId)
     const source = await compositeAnnotated(frame, still, media?.width ?? 0, media?.height ?? 0)
     inputs.push({

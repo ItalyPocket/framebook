@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Right panel: inspector for the selected board card. Label, notes, aspect
  * select with a live crop overlay editor on the still, and the prompt panel —
@@ -71,7 +72,7 @@ export function Inspector(): JSX.Element {
     const res = await generatePrompt(frameId, profileId, frame?.notes ?? '')
     setGenerating(false)
     if (!res.ok) {
-      setError(res.error ?? 'Failed to generate.')
+      setError(res.error ?? t("Failed to generate."))
       setShowTemplate(true)
       return
     }
@@ -79,7 +80,7 @@ export function Inspector(): JSX.Element {
     setPromptText(updated?.prompt?.text ?? '')
     setDefaultProfile(profileId)
     await save()
-    toast('Prompt generated.', 'success')
+    toast(t("Prompt generated."), 'success')
   }, [frameId, profileId, frame?.notes, setDefaultProfile, save, toast])
 
   const onApplyTemplate = useCallback(async () => {
@@ -92,13 +93,13 @@ export function Inspector(): JSX.Element {
 
   const onCopy = useCallback(async () => {
     await navigator.clipboard.writeText(promptText)
-    toast('Prompt copied.', 'success')
+    toast(t("Prompt copied."), 'success')
   }, [promptText, toast])
 
   if (!frame) {
     return (
       <div className="inspector-col panel">
-        <div className="inspector-empty">Select a board card to label, reframe, and prompt it.</div>
+        <div className="inspector-empty">{t("Select a board card to label, reframe, and prompt it.")}</div>
       </div>
     )
   }
@@ -119,7 +120,7 @@ export function Inspector(): JSX.Element {
     <div className="inspector-col panel">
       <div className="inspector-still-wrap">
         {stillUrl ? (
-          <img className="inspector-still" src={stillUrl} alt="frame still" />
+          <img className="inspector-still" src={stillUrl} alt={t("frame still")} />
         ) : (
           <div className="inspector-still" />
         )}
@@ -130,21 +131,21 @@ export function Inspector(): JSX.Element {
 
       <div className="panel-section">
         <div className="field">
-          <label>Label</label>
+          <label>{t("Label")}</label>
           <input
             type="text"
             value={frame.label}
-            placeholder="SHOT 1A — HERO ENTERS"
+            placeholder={t("SHOT 1A — HERO ENTERS")}
             onChange={(e) => setFrameLabel(frame.id, e.target.value)}
             onBlur={save}
           />
         </div>
         <div className="field">
-          <label>Notes</label>
+          <label>{t("Notes")}</label>
           <textarea value={frame.notes} onChange={(e) => setFrameNotes(frame.id, e.target.value)} onBlur={save} />
         </div>
         <div className="field">
-          <label>Duration (s)</label>
+          <label>{t("Duration (s)")}</label>
           <input
             type="number"
             min={0.25}
@@ -158,35 +159,34 @@ export function Inspector(): JSX.Element {
       </div>
 
       <div className="panel-section">
-        <div className="panel-title">Shot</div>
+        <div className="panel-title">{t("Shot")}</div>
         <div className="field-row">
           <div className="field" style={{ flex: 1 }}>
-            <label>Scene</label>
+            <label>{t("Scene")}</label>
             <input type="text" value={frame.shot.sceneNo} onChange={(e) => setFrameShot(frame.id, { sceneNo: e.target.value })} onBlur={save} />
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label>Shot</label>
+            <label>{t("Shot")}</label>
             <input type="text" value={frame.shot.shotNo} onChange={(e) => setFrameShot(frame.id, { shotNo: e.target.value })} onBlur={save} />
           </div>
         </div>
-        <ShotSelect label="Size" options={SHOT_SIZES} value={frame.shot.shotSize} onChange={(v) => { setFrameShot(frame.id, { shotSize: v }); void save() }} />
-        <ShotSelect label="Angle" options={CAMERA_ANGLES} value={frame.shot.cameraAngle} onChange={(v) => { setFrameShot(frame.id, { cameraAngle: v }); void save() }} />
+        <ShotSelect label={t("Size")} options={SHOT_SIZES} value={frame.shot.shotSize} onChange={(v) => { setFrameShot(frame.id, { shotSize: v }); void save() }} />
+        <ShotSelect label={t("Angle")} options={CAMERA_ANGLES} value={frame.shot.cameraAngle} onChange={(v) => { setFrameShot(frame.id, { cameraAngle: v }); void save() }} />
         <div className="field">
-          <label>Lens</label>
-          <input type="text" value={frame.shot.lens} placeholder="e.g. 35mm" onChange={(e) => setFrameShot(frame.id, { lens: e.target.value })} onBlur={save} />
+          <label>{t("Lens")}</label>
+          <input type="text" value={frame.shot.lens} placeholder={t("e.g. 35mm")} onChange={(e) => setFrameShot(frame.id, { lens: e.target.value })} onBlur={save} />
         </div>
-        <ShotSelect label="Movement" options={MOVEMENTS} value={frame.shot.movement} onChange={(v) => { setFrameShot(frame.id, { movement: v }); void save() }} />
-        <ShotSelect label="Transition" options={TRANSITIONS} value={frame.shot.transition} onChange={(v) => { setFrameShot(frame.id, { transition: v }); void save() }} />
+        <ShotSelect label={t("Movement")} options={MOVEMENTS} value={frame.shot.movement} onChange={(v) => { setFrameShot(frame.id, { movement: v }); void save() }} />
+        <ShotSelect label={t("Transition")} options={TRANSITIONS} value={frame.shot.transition} onChange={(v) => { setFrameShot(frame.id, { transition: v }); void save() }} />
       </div>
 
       <div className="panel-section">
-        <div className="panel-title">Annotate</div>
+        <div className="panel-title">{t("Annotate")}</div>
         <div className="hint" style={{ marginBottom: 8 }}>
-          Draw camera-move arrows or action text on the stage. Pick a tool, then drag (arrow) or click (text).
-        </div>
+          {t("Draw camera-move arrows or action text on the stage. Pick a tool, then drag (arrow) or click (text).")}</div>
         <div className="seg" style={{ marginBottom: 8 }}>
-          <button className={annotTool === 'arrow' ? 'active' : ''} onClick={() => setAnnotTool(annotTool === 'arrow' ? 'none' : 'arrow')}>↗ Arrow</button>
-          <button className={annotTool === 'text' ? 'active' : ''} onClick={() => setAnnotTool(annotTool === 'text' ? 'none' : 'text')}>T Text</button>
+          <button className={annotTool === 'arrow' ? 'active' : ''} onClick={() => setAnnotTool(annotTool === 'arrow' ? 'none' : 'arrow')}>{t("↗ Arrow")}</button>
+          <button className={annotTool === 'text' ? 'active' : ''} onClick={() => setAnnotTool(annotTool === 'text' ? 'none' : 'text')}>{t("T Text")}</button>
         </div>
         <div className="anno-swatches">
           {ANNOTATION_COLORS.map((c) => (
@@ -199,18 +199,17 @@ export function Inspector(): JSX.Element {
             />
           ))}
           <button className="btn small" style={{ marginLeft: 'auto' }} onClick={() => { clearAnnotations(frame.id); void save() }} disabled={frame.annotations.length === 0}>
-            Clear
-          </button>
+            {t("Clear")}</button>
         </div>
       </div>
 
       <div className="panel-section">
-        <div className="panel-title">Reframe</div>
+        <div className="panel-title">{t("Reframe")}</div>
         <div className="seg">
-          <button className={!crop ? 'active' : ''} onClick={() => onAspect(null)}>none</button>
+          <button className={!crop ? 'active' : ''} onClick={() => onAspect(null)}>{t('none')}</button>
           {CROP_ASPECTS.map((a) => (
             <button key={a} className={crop?.aspect === a ? 'active' : ''} onClick={() => onAspect(a)}>
-              {a}
+              {t(a)}
             </button>
           ))}
         </div>
@@ -220,24 +219,24 @@ export function Inspector(): JSX.Element {
       </div>
 
       <div className="panel-section">
-        <div className="panel-title">Prompt</div>
+        <div className="panel-title">{t("Prompt")}</div>
         <div className="field">
-          <label>Generator profile</label>
+          <label>{t("Generator profile")}</label>
           <select value={profileId} onChange={(e) => setProfileId(e.target.value)}>
             {BUILTIN_PROFILES.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>{t(p.name)}</option>
             ))}
           </select>
         </div>
         <button className="btn primary block" onClick={onGenerate} disabled={generating}>
-          {generating ? 'Generating…' : '✨ Generate prompt'}
+          {generating ? t("Generating…") : t("✨ Generate prompt")}
         </button>
         {error && <div className="err-text" style={{ marginTop: 8 }}>{error}</div>}
         <textarea
           className="prompt-box"
           style={{ marginTop: 10 }}
           value={promptText}
-          placeholder="Generate a prompt, use the template below, or write your own…"
+          placeholder={t("Generate a prompt, use the template below, or write your own…")}
           onChange={(e) => setPromptText(e.target.value)}
           onBlur={() => {
             if (frameId) setFramePrompt(frameId, promptText, profileId, frame.prompt?.model ?? 'edited')
@@ -245,19 +244,18 @@ export function Inspector(): JSX.Element {
           }}
         />
         <div className="field-row" style={{ marginTop: 8 }}>
-          <button className="btn small" onClick={onCopy} disabled={!promptText}>Copy prompt</button>
+          <button className="btn small" onClick={onCopy} disabled={!promptText}>{t("Copy prompt")}</button>
           <button className="btn small" onClick={() => setShowTemplate((v) => !v)}>
-            {showTemplate ? 'Hide template' : 'Offline template'}
+            {showTemplate ? t("Hide template") : t("Offline template")}
           </button>
         </div>
 
         {showTemplate && (
           <div style={{ marginTop: 12 }}>
             <div className="hint" style={{ marginBottom: 8 }}>
-              No API? Fill these and build a prompt scaffold from the frame's metadata.
-            </div>
+              {t("No API? Fill these and build a prompt scaffold from the frame's metadata.")}</div>
             <TplSelect
-              label="Shot size"
+              label={t("Shot size")}
               options={SHOT_SIZES}
               value={tpl.shotSize}
               onChange={(v) => {
@@ -266,7 +264,7 @@ export function Inspector(): JSX.Element {
               }}
             />
             <TplSelect
-              label="Camera angle"
+              label={t("Camera angle")}
               options={CAMERA_ANGLES}
               value={tpl.cameraAngle}
               onChange={(v) => {
@@ -274,9 +272,9 @@ export function Inspector(): JSX.Element {
                 if (frameId) { setFrameShot(frameId, { cameraAngle: v }); void save() }
               }}
             />
-            <TplSelect label="Lighting" options={LIGHTING_STYLES} value={tpl.lighting} onChange={(v) => setTpl({ ...tpl, lighting: v })} />
-            <TplSelect label="Mood" options={MOODS} value={tpl.mood} onChange={(v) => setTpl({ ...tpl, mood: v })} />
-            <button className="btn block" onClick={onApplyTemplate}>Build template prompt</button>
+            <TplSelect label={t("Lighting")} options={LIGHTING_STYLES} value={tpl.lighting} onChange={(v) => setTpl({ ...tpl, lighting: v })} />
+            <TplSelect label={t("Mood")} options={MOODS} value={tpl.mood} onChange={(v) => setTpl({ ...tpl, mood: v })} />
+            <button className="btn block" onClick={onApplyTemplate}>{t("Build template prompt")}</button>
           </div>
         )}
       </div>
@@ -295,7 +293,7 @@ function TplSelect({ label, options, value, onChange }: {
       <label>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+          <option key={o} value={o}>{t(o)}</option>
         ))}
       </select>
     </div>
@@ -315,7 +313,7 @@ function ShotSelect({ label, options, value, onChange }: {
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">—</option>
         {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+          <option key={o} value={o}>{t(o)}</option>
         ))}
       </select>
     </div>

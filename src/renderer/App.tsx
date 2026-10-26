@@ -1,3 +1,5 @@
+import { useLanguage } from './language'
+import { t } from '@shared/i18n'
 /**
  * App shell: welcome screen, titlebar, the three-panel workspace + board,
  * global keyboard map, autosave, credits.
@@ -12,7 +14,8 @@ import { Board } from './panels/Board'
 import { Toasts } from './panels/Toasts'
 import { HelpOverlay } from './panels/Help'
 import { Present } from './panels/Present'
-import logoUrl from './assets/logo.png'
+import { Gallery } from './panels/Gallery'
+import { StoryboardEditor } from './panels/Storyboard'
 
 function CreditLink({ url, children }: { url: string; children: string }): JSX.Element {
   return (
@@ -31,12 +34,11 @@ function CreditLink({ url, children }: { url: string; children: string }): JSX.E
 export function Credits(): JSX.Element {
   return (
     <div className="credits">
-      Created by Sam Wasserman ·{' '}
+      {t("Created by Sam Wasserman ·")}{' '}
       <CreditLink url="https://wassermanproductions.com">wassermanproductions.com</CreditLink> ·{' '}
       <CreditLink url="https://wasserman.ai">wasserman.ai</CreditLink>
       <br />
-      Open source under Apache-2.0 — keep this credit when using or forking.
-    </div>
+      {t("Open source under Apache-2.0 — keep this credit when using or forking.")}</div>
   )
 }
 
@@ -49,7 +51,7 @@ function Welcome(): JSX.Element {
   const onNew = useCallback(async () => {
     const folder = await window.sbr.newProjectDialog()
     if (!folder) return
-    const name = folder.split(/[/\\]/).pop()?.replace(/\.sbref$/, '') ?? 'Untitled'
+    const name = folder.split(/[/\\]/).pop()?.replace(/\.sbref$/, '') ?? t("Untitled")
     newProject(folder, name)
     const json = currentProjectJson()
     if (json) await window.sbr.saveProject(folder, json)
@@ -60,34 +62,29 @@ function Welcome(): JSX.Element {
     if (!folder) return
     const { json, backupJson, backupNewer } = await window.sbr.loadProject(folder)
     if (!json && !backupJson) {
-      toast('No project.json found in that folder.', 'error')
+      toast(t("No project.json found in that folder."), 'error')
       return
     }
     if (backupNewer && backupJson && loadFromJson(folder, backupJson)) {
-      toast('Restored unsaved work from the autosave backup — Save to keep it.', 'success')
+      toast(t("Restored unsaved work from the autosave backup — Save to keep it."), 'success')
       return
     }
     if (json && loadFromJson(folder, json)) return
     if (backupJson && loadFromJson(folder, backupJson)) {
-      toast('Recovered from autosave backup.', 'success')
+      toast(t("Recovered from autosave backup."), 'success')
     }
   }, [loadFromJson, toast])
 
   return (
     <div className="welcome">
-      <img
-        src={logoUrl}
-        alt="Storyboard Reference Studio"
-        style={{ width: 280, height: 280, objectFit: 'contain', borderRadius: 16, marginBottom: -12 }}
-      />
+      <div className="welcome-collage" aria-hidden="true"><div className="collage-orbit"/><div className="collage-grid"/><div className="collage-frame frame-a">01</div><div className="collage-frame frame-b">02</div><div className="collage-block"/><span>LOOK / FRAME / THINK</span></div>
+      <div className="welcome-title"><span className="eyebrow">A FIELD GUIDE TO MOVING IMAGES</span><h1>帧册<span>FRAMEBOOK</span></h1></div>
       <p>
-        Turn any reference imagery — movie clips, phone footage, pulled stills — into a storyboard of
-        stills and image-generator-ready prompts.
-      </p>
+        {t("Capture a frame. Understand a shot. Build your story.")}</p>
       <div className="actions">
-        <button className="btn primary" onClick={onNew}>New Project</button>
-        <button className="btn" onClick={onOpen}>Open Project…</button>
-        <button className="btn" onClick={() => setHelpOpen(true)}>? Quick start</button>
+        <button className="btn primary" onClick={onNew}>{t("New Project")}</button>
+        <button className="btn" onClick={onOpen}>{t("Open Project…")}</button>
+        <button className="btn" onClick={() => setHelpOpen(true)}>{t("? Quick start")}</button>
       </div>
       <Credits />
     </div>
@@ -116,6 +113,10 @@ interface Transport {
 }
 
 function useKeyboard(): void {
+  useEffect(() => window.sbr.onHistory((action) => {
+    if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) document.execCommand(action)
+    else useStore.getState()[action]()
+  }), [])
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const s = useStore.getState()
@@ -144,6 +145,13 @@ function useKeyboard(): void {
       // Present mode owns the keyboard while it's open (it captures keys).
       if (s.presentOpen) return
       if (inField) return
+      if (meta && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) s.redo()
+        else s.undo()
+        return
+      }
+      if (s.workspace !== 'capture') return
 
       if (e.key === 'p' || e.key === 'P') {
         if (s.doc && s.orderedFrames().length > 0) s.setPresentOpen(true)
@@ -188,7 +196,7 @@ function useKeyboard(): void {
         }
         if (s.selectedFrameId) {
           const frame = s.frame(s.selectedFrameId)
-          if (frame?.prompt?.text && !window.confirm('This frame has a prompt. Remove it?')) return
+          if (frame?.prompt?.text && !window.confirm(t("This frame has a prompt. Remove it?"))) return
           s.removeFrame(s.selectedFrameId)
           const json = currentProjectJson()
           if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json)
@@ -201,7 +209,11 @@ function useKeyboard(): void {
 }
 
 export function App(): JSX.Element {
+  const language = useLanguage((s) => s.preference)
   const doc = useStore((s) => s.doc)
+  const workspace = useStore((s) => s.workspace)
+  const canUndo = useStore((s) => s.history.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
   const dirty = useStore((s) => s.dirty)
   const folder = useStore((s) => s.projectFolder)
   const markSaved = useStore((s) => s.markSaved)
@@ -219,9 +231,10 @@ export function App(): JSX.Element {
 
   if (!doc) {
     return (
-      <div className="app">
+      <div className="app welcome-app" data-language={language}>
         <div className="titlebar">
-          <span className="app-name">STORYBOARD REFERENCE</span>
+          <span className="app-name">帧册 / FRAMEBOOK</span>
+          <div className="spacer" /><LanguageSelect />
         </div>
         <Welcome />
         <Toasts />
@@ -231,26 +244,34 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app">
+    <div className="app" data-language={language}>
       <div className="titlebar">
-        <span className="app-name">STORYBOARD REFERENCE</span>
+        <span className="app-name">帧册 / FRAMEBOOK</span>
         <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
           {doc.name}
           {dirty ? ' •' : ''}
         </span>
         <div className="spacer" />
-        <button className="btn small" onClick={onSave}>Save</button>
-        <button className="btn small" onClick={() => useStore.getState().setHelpOpen(true)}>? Help</button>
+        <button className="btn small" disabled={!canUndo} onClick={() => useStore.getState().undo()}>{t('Undo')}</button>
+        <button className="btn small" disabled={!canRedo} onClick={() => useStore.getState().redo()}>{t('Redo')}</button>
+        <LanguageSelect />
+        <button className="btn small" onClick={onSave}>{t("Save")}</button>
+        <button className="btn small" onClick={() => useStore.getState().setHelpOpen(true)}>{t("? Help")}</button>
       </div>
-      <div className="workspace">
-        <MediaBin />
-        <Viewer />
-        <Inspector />
-        <Board />
-      </div>
+      <nav className="workspace-nav">{(['capture', 'gallery', 'storyboard'] as const).map((value, index) => <button key={value} className={workspace === value ? 'active' : ''} onClick={() => useStore.getState().setWorkspace(value)}><span>0{index + 1}</span>{t({capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor'}[value])}</button>)}<span className="nav-note">FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}</span></nav>
+      {workspace === 'capture' ? <div className="workspace"><MediaBin /><Viewer /><Inspector /><Board /></div> : workspace === 'gallery' ? <Gallery /> : <StoryboardEditor />}
       <Toasts />
       <HelpOverlay />
       <Present />
     </div>
   )
+}
+
+function LanguageSelect(): JSX.Element {
+  const { preference, change } = useLanguage()
+  return <select className="language-select" aria-label={t('Language')} value={preference} onChange={(e) => change(e.target.value as typeof preference)}>
+    <option value="system">{t('Follow system')}</option>
+    <option value="zh-CN">简体中文</option>
+    <option value="en">English</option>
+  </select>
 }

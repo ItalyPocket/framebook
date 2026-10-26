@@ -1,8 +1,8 @@
 {
-  "name": "storyboard-reference-studio",
-  "productName": "Storyboard Reference Studio",
-  "version": "1.2.1",
-  "description": "Turn any reference imagery into a storyboard of stills plus image-generator-ready prompts.",
+  "name": "framebook",
+  "productName": "帧册",
+  "version": "2.0.0",
+  "description": "Framebook — capture, study and arrange your shots. 帧册：静帧截取与分镜分析。",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",
   "license": "Apache-2.0",

@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Bottom board: horizontal strip of frame cards in order. Drag to reorder,
  * click to select, ⌫ to remove (confirm if it has a prompt). "Prompt all
@@ -25,7 +26,7 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
     (e: React.MouseEvent) => {
       e.stopPropagation()
       if (frame.prompt && frame.prompt.text) {
-        if (!window.confirm('This frame has a prompt. Remove it from the board?')) return
+        if (!window.confirm(t("This frame has a prompt. Remove it from the board?"))) return
       }
       removeFrame(frame.id)
       const json = currentProjectJson()
@@ -56,7 +57,7 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
         }
       }}
     >
-      <button className="board-card-del" onClick={onRemove} title="Remove (⌫)">✕</button>
+      <button className="board-card-del" onClick={onRemove} title={t("Remove (⌫)")}>✕</button>
       <div className="board-card-thumb-wrap">
         {url ? <img className="board-card-thumb" src={url} alt={frame.label} /> : <div className="board-card-thumb" />}
         {frame.annotations.length > 0 && still && (
@@ -68,10 +69,10 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
         <span className="board-card-dur">{frame.durationS.toFixed(1)}s</span>
       </div>
       <div className="board-card-body">
-        <div className="board-card-label" title={frame.label}>{frame.label || '(untitled)'}</div>
+        <div className="board-card-label" title={frame.label}>{frame.label || t("(untitled)")}</div>
         <div className="board-card-meta">
           <span className="board-index">{String(index + 1).padStart(2, '0')}</span>
-          <span className={`dot ${frame.prompt?.text ? 'has-prompt' : ''}`} title={frame.prompt?.text ? 'Has prompt' : 'No prompt'} />
+          <span className={`dot ${frame.prompt?.text ? 'has-prompt' : ''}`} title={frame.prompt?.text ? t("Has prompt") : t("No prompt")} />
         </div>
       </div>
     </div>
@@ -84,7 +85,7 @@ export function Board(): JSX.Element {
   const rawFrames = useStore((s) => s.doc?.frames)
   const frames = useMemo(() => [...(rawFrames ?? [])].sort((a, b) => a.order - b.order), [rawFrames])
   const folder = useStore((s) => s.projectFolder)
-  const projectName = useStore((s) => s.doc?.name ?? 'Storyboard')
+  const projectName = useStore((s) => s.doc?.name ?? t("Storyboard"))
   const defaultProfile = useStore((s) => s.doc?.settings.defaultProfileId ?? 'midjourney')
   const promptingAll = useStore((s) => s.promptingAll)
   const setPromptingAll = useStore((s) => s.setPromptingAll)
@@ -116,15 +117,15 @@ export function Board(): JSX.Element {
       if (res.ok) done++
       else {
         failed++
-        toast(res.error ?? 'Prompt failed', 'error')
+        toast(res.error ?? t("Prompt failed"), 'error')
         break // stop on first hard failure (usually auth) to avoid a wall of toasts
       }
     }
     setPromptingAll(false)
     const json = currentProjectJson()
     if (json && folder) await window.sbr.saveProject(folder, json)
-    if (done) toast(`Generated ${done} prompt${done > 1 ? 's' : ''}.`, 'success')
-    if (!done && !failed) toast('All frames already have prompts.', 'info')
+    if (done) toast(t('Generated {count} prompts.', { count: done }), 'success')
+    if (!done && !failed) toast(t("All frames already have prompts."), 'info')
   }, [frames, defaultProfile, folder, setPromptingAll, toast])
 
   const runExport = useCallback(
@@ -139,17 +140,19 @@ export function Board(): JSX.Element {
         const payload = { projectName, exportsRoot, frames: inputs }
         if (kind === 'board') {
           const res = await window.sbr.exportBoard(payload)
-          toast(res.ok ? 'Board exported — revealed in Finder.' : `Export failed: ${res.error ?? ''}`, res.ok ? 'success' : 'error')
+          toast(res.ok ? t("Board exported — revealed in Finder.") : t('Operation failed: {error}', { error: res.error ?? '' }), res.ok ? 'success' : 'error')
         } else if (kind === 'animatic') {
           const res = await window.sbr.exportAnimatic(payload, { burnLabel: true, audioPath: audioAbsPath() })
-          toast(res.ok ? 'Animatic exported — revealed in Finder.' : `Animatic failed: ${res.error ?? ''}`, res.ok ? 'success' : 'error')
+          toast(res.ok ? t("Animatic exported — revealed in Finder.") : t('Operation failed: {error}', { error: res.error ?? '' }), res.ok ? 'success' : 'error')
         } else if (kind === 'pdf') {
           const res = await window.sbr.exportPdf(payload)
-          toast(res.ok ? 'PDF exported — revealed in Finder.' : `PDF failed: ${res.error ?? ''}`, res.ok ? 'success' : 'error')
+          toast(res.ok ? t("PDF exported — revealed in Finder.") : t('Operation failed: {error}', { error: res.error ?? '' }), res.ok ? 'success' : 'error')
         } else {
           const res = await window.sbr.exportShotlist(payload)
-          toast(res.ok ? 'Shot list exported — revealed in Finder.' : `Shot list failed: ${res.error ?? ''}`, res.ok ? 'success' : 'error')
+          toast(res.ok ? t("Shot list exported — revealed in Finder.") : t('Operation failed: {error}', { error: res.error ?? '' }), res.ok ? 'success' : 'error')
         }
+      } catch (error) {
+        toast(t('Operation failed: {error}', { error: (error as Error).message }), 'error')
       } finally {
         setExporting(false)
       }
@@ -162,28 +165,27 @@ export function Board(): JSX.Element {
   return (
     <div className="board">
       <div className="board-bar">
-        <span className="panel-title" style={{ margin: 0 }}>Board</span>
-        <span className="board-count">{frames.length} frames · {withPrompt} prompted · {missing} missing</span>
+        <span className="panel-title" style={{ margin: 0 }}>{t("Frame gallery")}</span>
+        <span className="board-count">{frames.length} {t("frames ·")}{withPrompt} {t("prompted ·")}{missing} {t("missing")}</span>
+<button className="btn small" onClick={() => useStore.getState().setWorkspace('gallery')}>{t('Open gallery')} ↗</button>
         <div style={{ flex: 1 }} />
-        <button className="btn small" onClick={() => setPresentOpen(true)} disabled={frames.length === 0} title="Present / play the board (P)">
-          ▶ Present
-        </button>
+        <button className="btn small" onClick={() => setPresentOpen(true)} disabled={frames.length === 0} title={t("Present / play the board (P)")}>
+          {t("▶ Present")}</button>
         <button className="btn small" onClick={onPromptAll} disabled={promptingAll || missing === 0}>
-          {promptingAll ? 'Prompting…' : 'Prompt all missing'}
+          {promptingAll ? t("Prompting…") : t("Prompt all missing")}
         </button>
         <button className="btn small primary" onClick={onExport} disabled={exporting || frames.length === 0}>
-          {exporting ? 'Exporting…' : 'Export board'}
+          {exporting ? t("Exporting…") : t("Export board")}
         </button>
         <div className="export-menu-wrap" ref={menuRef}>
-          <button className="btn small" onClick={() => setExportMenu((v) => !v)} disabled={exporting || frames.length === 0} title="More export formats">
-            Export ▾
-          </button>
+          <button className="btn small" onClick={() => setExportMenu((v) => !v)} disabled={exporting || frames.length === 0} title={t("More export formats")}>
+            {t("Export ▾")}</button>
           {exportMenu && (
             <div className="export-menu">
-              <button onClick={() => runExport('board')}>Board package</button>
-              <button onClick={() => runExport('animatic')}>Animatic (MP4)</button>
-              <button onClick={() => runExport('pdf')}>PDF storyboard</button>
-              <button onClick={() => runExport('shotlist')}>Shot list (CSV)</button>
+              <button onClick={() => runExport('board')}>{t("Board package")}</button>
+              <button onClick={() => runExport('animatic')}>{t("Animatic (MP4)")}</button>
+              <button onClick={() => runExport('pdf')}>{t("PDF storyboard")}</button>
+              <button onClick={() => runExport('shotlist')}>{t("Shot list (CSV)")}</button>
             </div>
           )}
         </div>
@@ -191,8 +193,7 @@ export function Board(): JSX.Element {
       <div className="board-strip">
         {frames.length === 0 ? (
           <div className="board-empty">
-            Bookmark frames from a clip, add images, or Auto-board a section — they land here as cards.
-          </div>
+            {t("Bookmark frames from a clip, add images, or Auto-board a section — they land here as cards.")}</div>
         ) : (
           frames.map((f, i) => <BoardCard key={f.id} frame={f} index={i} />)
         )}

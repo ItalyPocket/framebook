@@ -5,7 +5,7 @@
  *   - scene:    ffmpeg scene-change detection (select gt(scene,threshold))
  */
 
-import { mkdir } from 'fs/promises'
+import { mkdir, mkdtemp, stat } from 'fs/promises'
 import { dirname, join } from 'path'
 import { resolveFfmpeg, run } from './ffmpeg'
 
@@ -21,7 +21,7 @@ export async function extractFrame(
   const res = await run(ffmpeg, [
     '-y', '-ss', String(Math.max(0, timeS)), '-i', mediaPath, '-frames:v', '1', outPng
   ])
-  if (res.code !== 0) return { ok: false, error: res.stderr.slice(-400), path: outPng }
+  if (res.code !== 0 || !(await stat(outPng).catch(() => null))?.size) return { ok: false, error: res.stderr.slice(-400), path: outPng }
   return { ok: true, path: outPng }
 }
 
@@ -36,7 +36,7 @@ export interface ExtractRangeResult {
   frames: { time: number; path: string }[]
 }
 
-const SCENE_CAP = 40
+const SCENE_CAP = 300
 
 /**
  * Extract frames across [startS, endS] per the mode. Returns the PNG paths and
@@ -49,7 +49,9 @@ export async function extractRange(
   mode: RangeMode,
   outDir: string
 ): Promise<ExtractRangeResult> {
+  if (![startS, endS].every(Number.isFinite) || startS < 0 || endS <= startS) return { ok: false, error: 'Invalid time range', frames: [] }
   await mkdir(outDir, { recursive: true })
+  outDir = await mkdtemp(join(outDir, 'batch-'))
   const span = Math.max(0, endS - startS)
 
   if (mode.kind === 'scene') {
@@ -60,11 +62,11 @@ export async function extractRange(
   let times: number[] = []
   if (mode.kind === 'interval') {
     const step = Math.max(0.05, mode.everyS)
-    for (let t = startS; t <= endS + 1e-6 && times.length < 300; t += step) times.push(t)
+    for (let t = startS; t < endS - 1e-6 && times.length < 300; t += step) times.push(t)
   } else {
-    const n = Math.max(1, Math.floor(mode.n))
+    const n = Math.min(300, Math.max(1, Math.floor(mode.n)))
     if (n === 1) times = [startS + span / 2]
-    else for (let i = 0; i < n; i++) times.push(startS + (span * i) / (n - 1))
+    else for (let i = 0; i < n; i++) times.push(startS + (span * (i + 0.5)) / n)
   }
 
   const frames: { time: number; path: string }[] = []

@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Present / Play mode: a fullscreen dark overlay that plays the board in order,
  * holding each frame for its durationS. Space toggles play/pause, arrows step,
@@ -151,26 +152,26 @@ export function Present(): JSX.Element | null {
     <div className="present-overlay">
       {audioUrl && <audio ref={audioRef} src={audioUrl} />}
       <div className="present-stage">
-        {url ? <img src={url} alt={current?.label ?? ''} /> : <div className="present-loading">Loading…</div>}
+        {url ? <img src={url} alt={current?.label ?? ''} /> : <div className="present-loading">{t("Loading…")}</div>}
       </div>
 
       {showMeta && current && (
         <div className="present-meta">
-          <div className="present-label">{current.label || '(untitled)'}</div>
+          <div className="present-label">{current.label || t("(untitled)")}</div>
           <div className="present-shot">{metaStrip(current)}</div>
         </div>
       )}
 
       <div className="present-bar">
-        <button className="btn small" onClick={() => { setPlaying(false); step(-1) }} title="Previous (←)">◀</button>
-        <button className="btn small primary" onClick={() => setPlaying((p) => !p)} title="Play / pause (Space)">
+        <button className="btn small" onClick={() => { setPlaying(false); step(-1) }} title={t("Previous (←)")}>◀</button>
+        <button className="btn small primary" onClick={() => setPlaying((p) => !p)} title={t("Play / pause (Space)")}>
           {playing ? '❚❚' : '▶'}
         </button>
-        <button className="btn small" onClick={() => { setPlaying(false); step(1) }} title="Next (→)">▶</button>
+        <button className="btn small" onClick={() => { setPlaying(false); step(1) }} title={t("Next (→)")}>▶</button>
         <span className="present-count">{frames.length ? index + 1 : 0} / {frames.length}</span>
         <div style={{ flex: 1 }} />
-        <button className="btn small" onClick={() => setShowMeta((v) => !v)} title="Toggle metadata (M)">Meta</button>
-        <button className="btn small" onClick={() => setPresentOpen(false)} title="Exit (Esc)">✕ Exit</button>
+        <button className="btn small" onClick={() => setShowMeta((v) => !v)} title={t("Toggle metadata (M)")}>{t("Meta")}</button>
+        <button className="btn small" onClick={() => setPresentOpen(false)} title={t("Exit (Esc)")}>{t("✕ Exit")}</button>
       </div>
     </div>
   )

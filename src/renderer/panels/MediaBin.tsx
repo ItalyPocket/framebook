@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Left rail: the media bin. Import (file dialog) + Paste (clipboard PNG),
  * thumbnails, click to open in the viewer.
@@ -33,7 +34,7 @@ function BinItem({ item }: { item: MediaItem }): JSX.Element {
       <div className="bin-meta">
         <div className="bin-name" title={item.name}>{item.name}</div>
         <div className="bin-sub">{dims}{dur}</div>
-        <div className="bin-kind">{item.kind.toUpperCase()}</div>
+        <div className="bin-kind">{t(item.kind.toUpperCase())}</div>
       </div>
     </div>
   )
@@ -77,13 +78,13 @@ export function MediaBin(): JSX.Element {
           mediaCount++
         }
       } catch (e) {
-        toast(`Import failed: ${(e as Error).message}`, 'error')
+        toast(t('Operation failed: {error}', { error: (e as Error).message }), 'error')
       }
     }
     const json = currentProjectJson()
     if (json) await window.sbr.saveProject(folder, json)
-    if (mediaCount) toast(`Imported ${mediaCount} file${mediaCount > 1 ? 's' : ''}.`, 'success')
-    if (audioCount) toast('Added scratch track.', 'success')
+    if (mediaCount) toast(t('Imported {count} files.', { count: mediaCount }), 'success')
+    if (audioCount) toast(t("Added scratch track."), 'success')
   }, [folder, addMedia, setAudioFile, toast])
 
   const toggleScratch = useCallback(() => {
@@ -107,28 +108,27 @@ export function MediaBin(): JSX.Element {
         addMedia(imported)
       }
       if (n === 0) {
-        toast('No image found on the clipboard.', 'error')
+        toast(t("No image found on the clipboard."), 'error')
         return
       }
       const json = currentProjectJson()
       if (json) await window.sbr.saveProject(folder, json)
-      toast(`Pasted ${n} image${n > 1 ? 's' : ''}.`, 'success')
+      toast(t('Pasted {count} images.', { count: n }), 'success')
     } catch (e) {
-      toast(`Paste failed: ${(e as Error).message}`, 'error')
+      toast(t('Operation failed: {error}', { error: (e as Error).message }), 'error')
     }
   }, [folder, addMedia, toast])
 
   return (
     <div className="bin panel">
       <div className="bin-actions">
-        <button className="btn small" onClick={onImport}>＋ Import</button>
-        <button className="btn small" onClick={onPaste}>⧉ Paste</button>
+        <button className="btn small" onClick={onImport}>{t("＋ Import")}</button>
+        <button className="btn small" onClick={onPaste}>{t("⧉ Paste")}</button>
       </div>
       <div className="bin-list">
         {(doc?.media.length ?? 0) === 0 ? (
           <div className="hint" style={{ padding: 8 }}>
-            Import videos, images, or an audio scratch track — or paste a screenshot — to start.
-          </div>
+            {t("Import videos, images, or an audio scratch track — or paste a screenshot — to start.")}</div>
         ) : (
           doc!.media.map((m) => <BinItem key={m.id} item={m} />)
         )}
@@ -136,13 +136,13 @@ export function MediaBin(): JSX.Element {
           <div
             className={`bin-item scratch ${audioFile === scratch.sourceFile ? 'active' : ''}`}
             onClick={toggleScratch}
-            title="Click to set / unset as the animatic scratch track"
+            title={t("Click to set / unset as the animatic scratch track")}
           >
             <div className="bin-thumb scratch-thumb">♪</div>
             <div className="bin-meta">
               <div className="bin-name" title={scratch.name}>{scratch.name}</div>
-              <div className="bin-sub">{audioFile === scratch.sourceFile ? 'scratch track' : 'audio (off)'}</div>
-              <div className="bin-kind">AUDIO</div>
+              <div className="bin-sub">{audioFile === scratch.sourceFile ? t("scratch track") : t("audio (off)")}</div>
+              <div className="bin-kind">{t("AUDIO")}</div>
             </div>
           </div>
         )}

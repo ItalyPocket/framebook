@@ -1,5 +1,5 @@
-appId: studio.storyboardref.app
-productName: Storyboard Reference Studio
+appId: io.italypocket.framebook
+productName: 帧册
 directories:
   output: release
 files:

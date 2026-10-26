@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Draggable crop overlay rendered over a frame's still. Maintains the target
  * aspect ratio while dragging corners; the whole rect can be moved. Crop is
@@ -139,7 +140,7 @@ export function CropEditor({ frameId, crop, imgW, imgH, guides = false }: {
 
   const outW = Math.max(1, Math.round(crop.w * imgW))
   const outH = Math.max(1, Math.round(crop.h * imgH))
-  const aspectLabel = crop.aspect && crop.aspect !== 'free' ? crop.aspect : 'free'
+  const aspectLabel = crop.aspect && crop.aspect !== 'free' ? crop.aspect : t("free")
 
   return (
     <div className="crop-editor" ref={boxRef}>

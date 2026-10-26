@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
-const DISCOVERY_FILE = join(homedir(), '.config', 'storyboard-reference', 'control.json')
+const DISCOVERY_FILE = join(homedir(), '.config', 'framebook', 'control.json')
 const PROTOCOL_VERSION = '2024-11-05'
 
 // Each tool name maps to a control action of the SAME name; the tool's input

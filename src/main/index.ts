@@ -1,3 +1,4 @@
+import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../shared/i18n'
 /**
  * Electron main process: window lifecycle, project folder I/O, media import
  * (copy into media/ + ffprobe), ffmpeg frame extraction, Claude prompt
@@ -5,8 +6,8 @@
  * the renderer talks through the typed IPC surface in src/preload.
  */
 
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { mkdir, readFile, writeFile, copyFile, stat } from 'fs/promises'
+import { app, BrowserWindow, dialog, ipcMain, shell, Menu } from 'electron'
+import { mkdir, readFile, writeFile, copyFile, stat, rename } from 'fs/promises'
 import { join, basename, extname, resolve, sep } from 'path'
 import { startControlServer } from './control'
 import { probeMedia } from './ffmpeg'
@@ -19,6 +20,8 @@ import {
   type AnimaticOptions
 } from './export'
 import { exportPdf } from './pdf'
+import { exportStoryboard, exportNumbered } from './storyboard'
+import type { StoryboardExportInput } from '../shared/exports'
 import { version as APP_VERSION } from '../../package.json'
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
@@ -31,8 +34,8 @@ function createWindow(): void {
     height: 1000,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Storyboard Reference Studio',
-    backgroundColor: '#111113',
+    title: '帧册 / Framebook',
+    backgroundColor: '#f7f8fa',
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -56,7 +59,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Native About panel (macOS "About Storyboard Reference Studio").
   app.setAboutPanelOptions({
-    applicationName: 'Storyboard Reference Studio',
+    applicationName: '帧册 / Framebook',
     applicationVersion: app.getVersion(),
     credits: 'Created by Sam Wasserman — wassermanproductions.com · wasserman.ai',
     copyright: 'Apache-2.0 — keep this credit when using or forking.'
@@ -87,9 +90,9 @@ ipcMain.handle('dialog:newProject', async () => {
   }
   if (!mainWindow) return null
   const result = await dialog.showSaveDialog(mainWindow, {
-    title: 'Create Storyboard Project',
-    buttonLabel: 'Create',
-    nameFieldLabel: 'Project name',
+    title: t('Create Storyboard Project'),
+    buttonLabel: t('Create'),
+    nameFieldLabel: t('Project name'),
     defaultPath: join(app.getPath('documents'), 'Untitled.sbref')
   })
   if (result.canceled || !result.filePath) return null
@@ -105,9 +108,9 @@ ipcMain.handle('dialog:openProject', async () => {
   }
   if (!mainWindow) return null
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Open Storyboard Project',
+    title: t('Open Storyboard Project'),
     properties: ['openDirectory'],
-    message: 'Choose a .sbref project folder'
+    message: t('Choose a .sbref project folder')
   })
   if (result.canceled || result.filePaths.length === 0) return null
   return result.filePaths[0]
@@ -116,13 +119,13 @@ ipcMain.handle('dialog:openProject', async () => {
 ipcMain.handle('dialog:importMedia', async () => {
   if (!mainWindow) return []
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Import media',
+    title: t('Import media'),
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Media', extensions: [...IMAGE_EXTS, ...VIDEO_EXTS, ...AUDIO_EXTS] },
-      { name: 'Images', extensions: IMAGE_EXTS },
-      { name: 'Videos', extensions: VIDEO_EXTS },
-      { name: 'Audio', extensions: AUDIO_EXTS }
+      { name: t('Media'), extensions: [...IMAGE_EXTS, ...VIDEO_EXTS, ...AUDIO_EXTS] },
+      { name: t('Images'), extensions: IMAGE_EXTS },
+      { name: t('Videos'), extensions: VIDEO_EXTS },
+      { name: t('Audio'), extensions: AUDIO_EXTS }
     ]
   })
   if (result.canceled) return []
@@ -133,7 +136,16 @@ ipcMain.handle('dialog:importMedia', async () => {
 
 ipcMain.handle('project:save', async (_e, folder: string, json: string) => {
   await mkdir(folder, { recursive: true })
-  await writeFile(join(folder, 'project.json'), json, 'utf-8')
+  const target = join(folder, 'project.json')
+  const previous = await readFile(target, 'utf-8').catch(() => null)
+  if (previous) {
+    try {
+      if (JSON.parse(previous).version < 3) await writeFile(join(folder, 'project.pre-framebook.json'), previous, { flag: 'wx' }).catch(() => {})
+    } catch {}
+  }
+  const temporary = join(folder, `project.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
+  await writeFile(temporary, json, 'utf-8')
+  await rename(temporary, target)
   return true
 })
 
@@ -308,3 +320,24 @@ ipcMain.handle('app:versions', () => ({
 }))
 
 ipcMain.handle('app:tempDir', () => app.getPath('temp'))
+
+ipcMain.handle('app:setLanguage', (_e, preference: LanguagePreference) => {
+  setLanguage(resolveLanguage(preference, app.getLocale()))
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: '帧册', submenu: [{ role: 'about', label: t('About') }, { type: 'separator' }, { role: 'quit', label: t('Quit') }] },
+    { label: t('Edit'), submenu: [{ label: t('Undo'), accelerator: 'CmdOrCtrl+Z', click: () => mainWindow?.webContents.send('history:action', 'undo') }, { label: t('Redo'), accelerator: 'CmdOrCtrl+Shift+Z', click: () => mainWindow?.webContents.send('history:action', 'redo') }, { type: 'separator' }, { role: 'cut', label: t('Cut') }, { role: 'copy', label: t('Copy') }, { role: 'paste', label: t('Paste') }, { role: 'selectAll', label: t('Select all') }] },
+    { label: t('View'), submenu: [{ role: 'togglefullscreen', label: t('Fullscreen') }] },
+    { label: t('Window'), submenu: [{ role: 'minimize', label: t('Minimize') }, { role: 'zoom', label: t('Zoom') }] }
+  ]))
+})
+
+ipcMain.handle('export:storyboard', async (_e, input: StoryboardExportInput) => {
+  const result = await exportStoryboard(input)
+  if (result.ok) shell.showItemInFolder(result.path)
+  return result
+})
+ipcMain.handle('export:numbered', async (_e, input: ExportInput, format: 'png' | 'jpg') => {
+  const result = await exportNumbered(input, format)
+  if (result.ok) shell.showItemInFolder(result.path)
+  return result
+})

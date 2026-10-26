@@ -1,3 +1,4 @@
+import { t } from '@shared/i18n'
 /**
  * Center-stage view of the selected board frame: its full-res still with the
  * crop overlay (generalized CropEditor), rule-of-thirds / action-safe guides,
@@ -128,7 +129,7 @@ export function FrameStage({ frame }: { frame: Frame }): JSX.Element {
   return (
     <div className="viewer">
       <div className="viewer-stage frame-stage" ref={boxRef}>
-        {stillUrl ? <img src={stillUrl} alt={frame.label} /> : <div className="viewer-empty">Extracting still…</div>}
+        {stillUrl ? <img src={stillUrl} alt={frame.label} /> : <div className="viewer-empty">{t("Extracting still…")}</div>}
 
         {/* Annotation display layer (behind the draw-capture layer). */}
         {svg && (
@@ -214,14 +215,12 @@ export function FrameStage({ frame }: { frame: Frame }): JSX.Element {
           <button
             className={`btn small ${guidesOn ? 'primary' : ''}`}
             onClick={() => setGuidesOn(!guidesOn)}
-            title="Toggle rule-of-thirds + action-safe guides (G)"
+            title={t("Toggle rule-of-thirds + action-safe guides (G)")}
           >
-            ⊞ Guides
-          </button>
+            {t("⊞ Guides")}</button>
         )}
-        <button className="btn small" onClick={() => setViewMode('clip')} title="Back to the clip">
-          ↩ Back to clip
-        </button>
+        <button className="btn small" onClick={() => setViewMode('clip')} title={t("Back to the clip")}>
+          {t("↩ Back to clip")}</button>
       </div>
     </div>
   )

@@ -16,34 +16,15 @@ import { mkdir, writeFile, copyFile } from 'fs/promises'
 import { join } from 'path'
 import { resolveFfmpeg, run } from './ffmpeg'
 import { slugLabel, emptyShotMeta } from '../shared/types'
-import type { Crop, ShotMeta, Annotation } from '../shared/types'
+import type { Crop } from '../shared/types'
+import type { ExportFrameInput } from '../shared/exports'
+export type { ExportFrameInput } from '../shared/exports'
 
 /**
  * Each frame's `sourcePng` is a full-resolution still with any annotations
  * already composited on (the renderer draws them onto a canvas before export —
  * see frameOps.compositeAnnotated). The main process only crops + assembles.
  */
-export interface ExportFrameInput {
-  /** Absolute path to the source still already extracted at full res (PNG). */
-  sourcePng: string
-  label: string
-  notes: string
-  promptText: string
-  profileId: string
-  crop: Crop | null
-  /** Source media dimensions (for turning normalized crop → pixels). */
-  sourceWidth: number
-  sourceHeight: number
-  timeS: number
-  mediaName: string
-  /** Animatic hold time (seconds). Optional; defaults to 2. */
-  durationS?: number
-  /** Shot-list metadata. Optional; defaults to all-blank. */
-  shot?: ShotMeta
-  /** Camera-move / action annotations (already composited into sourcePng). */
-  annotations?: Annotation[]
-}
-
 export interface ExportInput {
   projectName: string
   exportsRoot: string
@@ -80,7 +61,8 @@ export async function renderDisplayStill(
   if (!filter) return f.sourcePng
   const out = join(workDir, `disp-${String(index).padStart(3, '0')}.png`)
   const res = await run(ffmpeg, ['-y', '-i', f.sourcePng, '-vf', filter, out])
-  return res.code === 0 ? out : f.sourcePng
+  if (res.code !== 0) throw new Error(res.stderr.slice(-400))
+  return out
 }
 
 /** ffmpeg crop filter from a normalized crop, snapped to even pixels. */

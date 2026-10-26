@@ -20,7 +20,7 @@ interface Pending {
   timer: NodeJS.Timeout
 }
 
-const CONFIG_DIR = join(homedir(), '.config', 'storyboard-reference')
+const CONFIG_DIR = join(homedir(), '.config', 'framebook')
 const DISCOVERY_FILE = join(CONFIG_DIR, 'control.json')
 const MAX_BODY = 10 * 1024 * 1024 // 10 MB
 

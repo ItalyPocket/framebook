@@ -4,7 +4,9 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import type { DescribeResult, ShotMeta, Annotation } from '../shared/types'
+import type { DescribeResult } from '../shared/types'
+import type { ExportFrameInput, StoryboardExportInput, FileExportResult } from '../shared/exports'
+export type { ExportFrameInput } from '../shared/exports'
 
 export interface ImportedMedia {
   kind: 'image' | 'video'
@@ -32,22 +34,6 @@ export interface ExtractRangeResult {
   frames: { time: number; path: string }[]
 }
 
-export interface ExportFrameInput {
-  sourcePng: string
-  label: string
-  notes: string
-  promptText: string
-  profileId: string
-  crop: unknown
-  sourceWidth: number
-  sourceHeight: number
-  timeS: number
-  mediaName: string
-  durationS?: number
-  shot?: ShotMeta
-  annotations?: Annotation[]
-}
-
 export interface ExportBoardInput {
   projectName: string
   exportsRoot: string
@@ -60,6 +46,10 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  onHistory(cb: (action: 'undo' | 'redo') => void): () => void
+  exportStoryboard(input: StoryboardExportInput): Promise<FileExportResult>
+  exportNumbered(input: ExportBoardInput, format: 'png' | 'jpg'): Promise<FileExportResult>
+  setLanguage(value: 'system' | 'zh-CN' | 'en'): Promise<void>
   newProjectDialog(): Promise<string | null>
   openProjectDialog(): Promise<string | null>
   importMediaDialog(): Promise<string[]>
@@ -106,6 +96,14 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  onHistory: (cb) => {
+    const listener = (_event: unknown, action: 'undo' | 'redo'): void => cb(action)
+    ipcRenderer.on('history:action', listener)
+    return () => ipcRenderer.removeListener('history:action', listener)
+  },
+  exportStoryboard: (input) => ipcRenderer.invoke('export:storyboard', input),
+  exportNumbered: (input, format) => ipcRenderer.invoke('export:numbered', input, format),
+  setLanguage: (value) => ipcRenderer.invoke('app:setLanguage', value),
   newProjectDialog: () => ipcRenderer.invoke('dialog:newProject'),
   openProjectDialog: () => ipcRenderer.invoke('dialog:openProject'),
   importMediaDialog: () => ipcRenderer.invoke('dialog:importMedia'),

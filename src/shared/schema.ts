@@ -3,8 +3,8 @@
  * parseProject never throws on malformed input; it returns { doc, issues }.
  */
 
-import type { Project, MediaItem, Frame, MediaKind, Crop, ShotMeta, Annotation } from './types'
-import { PROJECT_VERSION, DEFAULT_FRAME_DURATION_S, emptyShotMeta } from './types'
+import type { Project, MediaItem, Frame, MediaKind, Crop, ShotMeta, Annotation, StoryShot } from './types'
+import { PROJECT_VERSION, DEFAULT_FRAME_DURATION_S, emptyShotMeta, STORY_FIELDS } from './types'
 import { DEFAULT_PROFILE_ID } from './profiles'
 
 /** Short, collision-resistant id (no external deps). */
@@ -21,7 +21,8 @@ export function createProject(name: string): Project {
     name,
     media: [],
     frames: [],
-    settings: { defaultProfileId: DEFAULT_PROFILE_ID, audioFile: null }
+    storyboard: { title: name, description: '', shots: [] },
+    settings: { gallerySort: 'time', defaultProfileId: DEFAULT_PROFILE_ID, audioFile: null }
   }
 }
 
@@ -108,7 +109,9 @@ export function parseProject(json: string): ParseOutcome {
     name: typeof o.name === 'string' ? o.name : 'Untitled',
     media,
     frames,
+    storyboard: sanitizeStoryboard(o.storyboard, frames, issues, typeof o.name === 'string' ? o.name : 'Untitled'),
     settings: {
+      gallerySort: settings.gallerySort === 'time' ? 'time' : 'manual',
       defaultProfileId:
         typeof settings.defaultProfileId === 'string'
           ? (settings.defaultProfileId as string)
@@ -232,4 +235,40 @@ function sanitizeAnnotation(a: unknown): Annotation | null {
     text: typeof o.text === 'string' ? o.text : undefined,
     color: typeof o.color === 'string' ? o.color : '#ff5533'
   }
+}
+
+export function createStoryShot(frames: Frame[] = []): StoryShot {
+  return {
+    ...Object.fromEntries(Object.keys(STORY_FIELDS).map((key) => [key, ''])) as Record<keyof typeof STORY_FIELDS, string>,
+    ...frames[0]?.shot,
+    id: newId('shot'),
+    title: frames[0]?.label ?? '',
+    notes: frames[0]?.notes ?? '',
+    images: frames.map((frame, index) => ({ frame: { ...structuredClone(frame), id: newId('still') }, role: index === 0 ? 'Start' : index === frames.length - 1 ? 'End' : 'Middle' })),
+    startS: null,
+    endS: null
+  }
+}
+
+function sanitizeStoryboard(value: unknown, frames: Frame[], issues: ParseIssue[], name: string): Project['storyboard'] {
+  if (!value || typeof value !== 'object') return { title: name, description: '', shots: [...frames].sort((a, b) => a.order - b.order).map((frame) => createStoryShot([frame])) }
+  const raw = value as Record<string, unknown>
+  const shots: StoryShot[] = []
+  if (Array.isArray(raw.shots)) for (const item of raw.shots) {
+    if (!item || typeof item !== 'object') continue
+    const shot = item as Record<string, unknown>
+    const result = createStoryShot()
+    if (typeof shot.id === 'string') result.id = shot.id
+    for (const key of Object.keys(STORY_FIELDS) as (keyof typeof STORY_FIELDS)[]) if (typeof shot[key] === 'string') result[key] = shot[key] as string
+    for (const key of ['startS', 'endS'] as const) if (typeof shot[key] === 'number' && Number.isFinite(shot[key]) && shot[key] >= 0) result[key] = shot[key] as number
+    if (result.startS !== null && result.endS !== null && result.endS < result.startS) result.endS = null
+    if (Array.isArray(shot.images)) for (const image of shot.images) {
+      if (!image || typeof image !== 'object') continue
+      const entry = image as Record<string, unknown>
+      const frame = sanitizeFrame(entry.frame, issues)
+      if (frame) result.images.push({ frame, role: typeof entry.role === 'string' ? entry.role : '' })
+    }
+    shots.push(result)
+  }
+  return { title: typeof raw.title === 'string' ? raw.title : name, description: typeof raw.description === 'string' ? raw.description : '', shots }
 }

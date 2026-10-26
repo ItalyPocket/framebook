@@ -21,7 +21,7 @@ export interface MediaItem {
   fps?: number
 }
 
-export type CropAspect = '16:9' | '9:16' | '1:1' | '4:3' | '2.39:1' | 'free'
+export type CropAspect = '16:9' | '9:16' | '1:1' | '4:3' | '3:4' | '2.39:1' | 'free'
 
 /** A reframe rectangle in normalized (0..1) source coordinates. */
 export interface Crop {
@@ -91,6 +91,7 @@ export interface Frame {
 }
 
 export interface ProjectSettings {
+  gallerySort: 'time' | 'manual'
   defaultProfileId: string
   /** Project-relative path to an imported scratch-track audio in media/. */
   audioFile: string | null
@@ -102,10 +103,11 @@ export interface Project {
   name: string
   media: MediaItem[]
   frames: Frame[]
+  storyboard: Storyboard
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 2
+export const PROJECT_VERSION = 3
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2
@@ -143,6 +145,8 @@ export function aspectRatio(aspect: CropAspect | null): number | null {
       return 9 / 16
     case '1:1':
       return 1
+    case '3:4':
+      return 3 / 4
     case '4:3':
       return 4 / 3
     case '2.39:1':
@@ -153,7 +157,7 @@ export function aspectRatio(aspect: CropAspect | null): number | null {
   }
 }
 
-export const CROP_ASPECTS: CropAspect[] = ['16:9', '9:16', '1:1', '4:3', '2.39:1', 'free']
+export const CROP_ASPECTS: CropAspect[] = ['16:9', '9:16', '1:1', '4:3', '3:4', '2.39:1', 'free']
 
 /** Filesystem-safe slug for a frame label (used in export folder names). */
 export function slugLabel(label: string): string {
@@ -163,4 +167,25 @@ export function slugLabel(label: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
   return s || 'frame'
+}
+
+export const STORY_FIELDS = {
+  sceneNo: 'Scene', shotNo: 'Shot', title: 'Label', shotSize: 'Size', cameraAngle: 'Angle',
+  lens: 'Lens', movement: 'Movement', transition: 'Transition', description: 'Description',
+  composition: 'Composition', lighting: 'Lighting and color', dialogue: 'Dialogue / voiceover',
+  sound: 'Music / sound', notes: 'Analysis notes'
+} as const
+
+export type StoryField = keyof typeof STORY_FIELDS
+export type StoryShot = Record<StoryField, string> & {
+  id: string
+  images: { frame: Frame; role: string }[]
+  startS: number | null
+  endS: number | null
+}
+
+export interface Storyboard {
+  title: string
+  description: string
+  shots: StoryShot[]
 }

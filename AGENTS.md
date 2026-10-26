@@ -16,7 +16,7 @@ npm start              # run the production build
 npm run typecheck      # strict TS, two projects (renderer+shared+preload, main+e2e)
 npm run lint           # ESLint (zero warnings)
 npm run smoke          # build + Playwright end-to-end: real ffmpeg extraction + export
-npm run package        # macOS DMG into release/ (Phase B; do not run yet)
+npm run package        # macOS DMG into release/ (Apple Silicon)
 ```
 
 **Definition of done for any change:** `npm run typecheck && npm run lint && npm run build` green, and `npm run smoke` green if you touched main/, shared/, frames/export/describe, the store, or frameOps.
@@ -57,7 +57,7 @@ tests/e2e/      Playwright smoke test (real app, real ffmpeg, real export).
 3. **All document edits go through `store.mutate(label, fn)`** (or a store action that calls it) — never assign into `store.doc` directly (breaks dirty tracking + autosave). Destructive actions (removing a prompted frame) confirm.
 4. **Selectors must return stable references.** `useStore((s) => s.orderedFrames())` returns a NEW array every call and loops React (error #185). Select the raw `doc.frames` and sort in a `useMemo` (see Board.tsx).
 5. **Projects are folders:** `<name>.sbref/` = `project.json` (pretty-printed) + `media/` (COPIES of imports incl. an optional audio scratch track) + `.autosave/` (60s backup) + `.frames/` (extracted full-res stills cache) + `exports/`. `parseProject` must never break on an existing file; sanitize/migrate instead.
-6. **Schema is versioned (`PROJECT_VERSION = 2`).** `parseProject` migrates v1→v2 silently — new per-frame fields (`durationS`, `shot`, `annotations`) and `settings.audioFile` get defaults, and the doc's `version` is stamped to current. Never throw on old files.
+6. **Schema is versioned (`PROJECT_VERSION = 3`).** `parseProject` migrates v1/v2→v3 silently — new per-frame fields (`durationS`, `shot`, `annotations`) and `settings.audioFile` get defaults, and the doc's `version` is stamped to current. Never throw on old files.
 7. **Annotation export compositing runs in the MAIN process** (`annotate.ts` / `pdf.ts`) via a hidden offscreen `BrowserWindow` (canvas / `printToPDF`) — ffmpeg can't rasterize SVG. `renderAnnotationsSvg` (shared) is the single source of annotation geometry for both the on-screen overlay and the export composite. Annotations are composited onto the full-res still BEFORE the crop is applied, so normalized 0..1 source coords line up.
 
 ## Automation surface (driving the running app)
@@ -114,3 +114,7 @@ claude mcp add storyboard-reference -- node /Users/eklpse1/Desktop/storyboard-re
 - Playwright e2e runs against the **built** app (`out/`) — `npm run smoke` builds first.
 - Do NOT modify the sibling app at `/Users/eklpse1/Desktop/blockout` — it is the read-only pattern library.
 ```
+
+## Framebook additions
+
+Chinese UI keys live in src/shared/zh-CN.json. New UI text goes through t(). Preserve user-authored text. Gallery and storyboard are separate workspaces; storyboard images are independent Frame snapshots. Shared export types live in src/shared/exports.ts. Run framebook.spec.ts for multi-image persistence, ordering and bilingual exports. Do not add code comments.

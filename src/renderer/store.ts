@@ -1,17 +1,10 @@
-/**
- * Application state (zustand). One store owns the document, selection, and the
- * viewer/board interaction state. All document edits flow through mutate(),
- * which marks the project dirty; components never edit the doc directly.
- *
- * This is a lighter app than Blockout — no undo stack is required (destructive
- * actions confirm in the UI) — but mutate() + a dirty flag + autosave give the
- * same crash-safety guarantees.
- */
-
+import { aspectRatio } from '@shared/types'
+import { t } from '@shared/i18n'
 import { create } from 'zustand'
-import type { Project, MediaItem, Frame, Crop, CropAspect, ShotMeta, Annotation } from '@shared/types'
+import type { Project, MediaItem, Frame, Crop, CropAspect, ShotMeta, Annotation, StoryShot } from '@shared/types'
 import {
   createProject,
+  createStoryShot,
   createMediaItem,
   createFrame,
   serializeProject,
@@ -42,6 +35,20 @@ interface SbrState {
   selectedMediaId: string | null
   /** Selected board frame (opens in the inspector). */
   selectedFrameId: string | null
+  seekTime: number | null
+  workspace: 'capture' | 'gallery' | 'storyboard'
+  history: Project[]
+  future: Project[]
+  setWorkspace(value: 'capture' | 'gallery' | 'storyboard'): void
+  undo(): void
+  redo(): void
+  sortGallery(): void
+  addShots(frameIds: string[], grouped: boolean): string
+  updateShot(id: string, patch: Partial<StoryShot>): void
+  removeShot(id: string): void
+  duplicateShot(id: string): void
+  reorderShot(id: string, toIndex: number): void
+  addShotImages(id: string, frameIds: string[]): void
   dirty: boolean
   toasts: Toast[]
   helpOpen: boolean
@@ -118,12 +125,17 @@ interface SbrState {
 }
 
 let toastSeq = 0
+let lastMutation = { label: '', time: 0 }
 
 export const useStore = create<SbrState>((set, get) => ({
   projectFolder: null,
   doc: null,
   selectedMediaId: null,
   selectedFrameId: null,
+  seekTime: null,
+  workspace: 'capture',
+  history: [],
+  future: [],
   dirty: false,
   toasts: [],
   helpOpen: false,
@@ -140,6 +152,9 @@ export const useStore = create<SbrState>((set, get) => ({
     const doc = createProject(name)
     set({
       doc,
+      history: [],
+      future: [],
+      workspace: 'capture',
       projectFolder: folder,
       selectedMediaId: null,
       selectedFrameId: null,
@@ -151,11 +166,14 @@ export const useStore = create<SbrState>((set, get) => ({
   loadFromJson(folder, json) {
     const { doc } = parseProject(json)
     if (!doc) {
-      get().toast('Could not open project: invalid project.json', 'error')
+      get().toast(t('Could not open project: invalid project.json'), 'error')
       return false
     }
     set({
       doc,
+      history: [],
+      future: [],
+      workspace: 'capture',
       projectFolder: folder,
       selectedMediaId: doc.media[0]?.id ?? null,
       selectedFrameId: doc.frames[0]?.id ?? null,
@@ -165,6 +183,65 @@ export const useStore = create<SbrState>((set, get) => ({
     return true
   },
 
+  setWorkspace: (workspace) => set({ workspace }),
+  undo() {
+    const { history, doc, future } = get()
+    if (!doc || !history.length) return
+    set({ doc: history[history.length - 1]!, history: history.slice(0, -1), future: [doc, ...future], dirty: true })
+    lastMutation = { label: '', time: 0 }
+  },
+  redo() {
+    const { history, doc, future } = get()
+    if (!doc || !future.length) return
+    set({ doc: future[0]!, history: [...history, doc], future: future.slice(1), dirty: true })
+    lastMutation = { label: '', time: 0 }
+  },
+  sortGallery() {
+    get().mutate('sort gallery', (doc) => { doc.settings.gallerySort = 'time'; sortFrames(doc) })
+  },
+  addShots(frameIds, grouped) {
+    let id = ''
+    get().mutate('add shots', (doc) => {
+      const frames = [...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))
+      const shots = grouped || !frames.length ? [createStoryShot(frames)] : frames.map((frame) => createStoryShot([frame]))
+      doc.storyboard.shots.push(...shots)
+      id = shots[0]?.id ?? ''
+    })
+    return id
+  },
+  updateShot(id, patch) {
+    get().mutate(`field:${id}:${Object.keys(patch).join(',')}`, (doc) => {
+      const shot = doc.storyboard.shots.find((item) => item.id === id)
+      if (shot) Object.assign(shot, patch, { id })
+    })
+  },
+  removeShot(id) {
+    get().mutate('remove shot', (doc) => { doc.storyboard.shots = doc.storyboard.shots.filter((shot) => shot.id !== id) })
+  },
+  duplicateShot(id) {
+    get().mutate('duplicate shot', (doc) => {
+      const index = doc.storyboard.shots.findIndex((shot) => shot.id === id)
+      if (index < 0) return
+      const copy = structuredClone(doc.storyboard.shots[index]!)
+      copy.id = newId('shot')
+      copy.images.forEach((image) => { image.frame.id = newId('still') })
+      doc.storyboard.shots.splice(index + 1, 0, copy)
+    })
+  },
+  reorderShot(id, toIndex) {
+    get().mutate('reorder shot', (doc) => {
+      const index = doc.storyboard.shots.findIndex((shot) => shot.id === id)
+      if (index < 0) return
+      const [shot] = doc.storyboard.shots.splice(index, 1)
+      doc.storyboard.shots.splice(Math.max(0, Math.min(toIndex, doc.storyboard.shots.length)), 0, shot!)
+    })
+  },
+  addShotImages(id, frameIds) {
+    get().mutate('add shot images', (doc) => {
+      const shot = doc.storyboard.shots.find((item) => item.id === id)
+      if (shot) shot.images.push(...createStoryShot([...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))).images)
+    })
+  },
   markSaved: () => set({ dirty: false }),
   setHelpOpen: (open) => set({ helpOpen: open }),
 
@@ -185,7 +262,10 @@ export const useStore = create<SbrState>((set, get) => ({
     // without a full serialize round-trip.
     const next = structuredClone(doc) as Project
     fn(next)
-    set({ doc: next, dirty: true })
+    const now = Date.now()
+    const merge = _label.startsWith('field:') && lastMutation.label === _label && now - lastMutation.time < 700 && get().future.length === 0
+    set({ doc: next, dirty: true, history: merge ? get().history : [...get().history, doc].slice(-50), future: [] })
+    lastMutation = { label: _label, time: now }
   },
 
   media(id) {
@@ -221,6 +301,7 @@ export const useStore = create<SbrState>((set, get) => ({
     const frame = createFrame(mediaId, timeS, order, label)
     get().mutate('add frame', (doc) => {
       doc.frames.push(frame)
+      if (doc.settings.gallerySort === 'time') sortFrames(doc)
     })
     set({ selectedFrameId: frame.id })
     return frame
@@ -229,7 +310,7 @@ export const useStore = create<SbrState>((set, get) => ({
   removeFrame(frameId) {
     get().mutate('remove frame', (doc) => {
       doc.frames = doc.frames.filter((f) => f.id !== frameId)
-      doc.frames.forEach((f, i) => (f.order = i))
+      doc.frames.sort((a, b) => a.order - b.order).forEach((f, i) => (f.order = i))
     })
     const stills = { ...get().stills }
     delete stills[frameId]
@@ -241,6 +322,7 @@ export const useStore = create<SbrState>((set, get) => ({
 
   reorderFrame(frameId, toIndex) {
     get().mutate('reorder', (doc) => {
+      doc.settings.gallerySort = 'manual'
       const ordered = [...doc.frames].sort((a, b) => a.order - b.order)
       const from = ordered.findIndex((f) => f.id === frameId)
       if (from === -1) return
@@ -254,13 +336,13 @@ export const useStore = create<SbrState>((set, get) => ({
   },
 
   setFrameLabel(frameId, label) {
-    get().mutate('label', (doc) => {
+    get().mutate(`field:${frameId}:label`, (doc) => {
       const f = doc.frames.find((x) => x.id === frameId)
       if (f) f.label = label
     })
   },
   setFrameNotes(frameId, notes) {
-    get().mutate('notes', (doc) => {
+    get().mutate(`field:${frameId}:notes`, (doc) => {
       const f = doc.frames.find((x) => x.id === frameId)
       if (f) f.notes = notes
     })
@@ -279,7 +361,13 @@ export const useStore = create<SbrState>((set, get) => ({
         f.crop = f.crop ? { ...f.crop, aspect: null } : null
         return
       }
-      f.crop = f.crop ? { ...f.crop, aspect } : fullCrop(aspect)
+      const media = doc.media.find((item) => item.id === f.mediaId)
+      const ratio = aspectRatio(aspect)
+      if (ratio && media && media.width > 0 && media.height > 0) {
+        const w = Math.min(1, ratio * media.height / media.width)
+        const h = Math.min(1, media.width / (ratio * media.height))
+        f.crop = { aspect, x: (1 - w) / 2, y: (1 - h) / 2, w, h }
+      } else f.crop = fullCrop(aspect)
     })
   },
   setFramePrompt(frameId, text, profileId, model) {
@@ -361,3 +449,8 @@ export function currentProjectJson(): string | null {
 }
 
 export { DEFAULT_PROFILE_ID }
+
+function sortFrames(doc: Project): void {
+  const positions = new Map(doc.media.map((media, index) => [media.id, index]))
+  doc.frames.sort((a, b) => (positions.get(a.mediaId) ?? 0) - (positions.get(b.mediaId) ?? 0) || a.timeS - b.timeS).forEach((frame, index) => { frame.order = index })
+}

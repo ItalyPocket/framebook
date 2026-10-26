@@ -50,6 +50,7 @@ test.beforeAll(async () => {
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
+  await page.locator('.language-select').selectOption('en')
 })
 
 test.afterAll(async () => {
@@ -57,7 +58,7 @@ test.afterAll(async () => {
 })
 
 test('boots to the welcome screen', async () => {
-  await expect(page.locator('.welcome img[alt="Storyboard Reference Studio"]')).toBeVisible()
+  await expect(page.locator('.welcome-title')).toBeVisible()
 })
 
 test('creates a project and imports the test clip', async () => {
