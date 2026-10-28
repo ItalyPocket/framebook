@@ -29,6 +29,7 @@ test('gallery, editable storyboard table, image cells, save and exports', async 
     expect(batches.times).toEqual([...batches.times].sort((a, b) => a - b))
     await page.locator('.workspace-nav').getByRole('button', { name: /静帧画廊/ }).click()
     await expect(page.locator('.gallery-image img')).toHaveCount(3)
+    await page.getByRole('button', { name: '全选', exact: true }).click()
     await page.getByRole('button', { name: '合并为一个多图镜头', exact: true }).click()
     await expect(page.locator('.story-table tbody tr')).toHaveCount(1)
     await expect(page.locator('.story-cell-image')).toHaveCount(3)
