@@ -38,7 +38,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
     </label>
   )
   const check = (
-    key: 'autosave' | 'copyMedia' | 'askStoryboard' | 'askFrames',
+    key: 'autosave' | 'copyMedia' | 'askStoryboard' | 'askFrames' | 'simplifyAnimations',
     label: string
   ): JSX.Element => (
     <label className="setting-check">
@@ -64,6 +64,9 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
         {tab === 'general' && value && (
           <div className="settings-grid">
             <section>
+              <h3>{t('Appearance and motion')}</h3>
+              {check('simplifyAnimations', 'Simplify animations')}
+              <p className="hint">{t('Use short fades instead of geometric motion.')}</p>
               <h3>{t('Projects and saving')}</h3>
               {path('projectRoot', 'Default project location')}
               {check('autosave', 'Enable autosave')}

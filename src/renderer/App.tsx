@@ -242,6 +242,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     void useSettings.getState().load()
   }, [])
+  const simplifyAnimations = useSettings((state) => state.value?.simplifyAnimations ?? false)
+  useEffect(() => {
+    document.documentElement.dataset.simplifyAnimations = String(simplifyAnimations)
+  }, [simplifyAnimations])
   const language = useLanguage((s) => s.preference)
   const [binVisible, setBinVisible] = usePreference('framebook.ui.bin', 'yes', [
     'yes',
@@ -454,6 +458,7 @@ function ProjectName(): JSX.Element {
       const folder = await window.sbr.renameProject(state.projectFolder, next.trim(), json)
       state.mutate('rename project', (doc) => {
         doc.name = next.trim()
+        doc.storyboard.title = next.trim()
       })
       useStore.setState({ projectFolder: folder, stills: {} })
       const saved = currentProjectJson()

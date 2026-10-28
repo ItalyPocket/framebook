@@ -2401,6 +2401,7 @@ button.btn:focus-visible::after {
   flex: 1;
   min-height: 0;
   overflow: clip;
+  isolation: isolate;
 }
 .workspace-page {
   position: absolute;
@@ -2409,12 +2410,24 @@ button.btn:focus-visible::after {
   flex-direction: column;
   min-height: 0;
 }
-.workspace-page.inactive {
+.workspace-page {
+  opacity: 0;
+  transform: translateY(14px);
   visibility: hidden;
+  transition:
+    opacity 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s 480ms;
+}
+.workspace-page.inactive {
   pointer-events: none;
 }
 .workspace-page.active {
-  animation: workspace-enter 240ms cubic-bezier(0.22, 0.72, 0.2, 1);
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  z-index: 1;
+  transition-delay: 0s;
 }
 .workspace-page > .capture-layout,
 .workspace-page > .gallery-workspace,
@@ -2437,16 +2450,16 @@ button.btn:focus-visible::after {
   height: 100%;
   background: #1737d1;
   transform: skewX(-20deg);
-  animation: workspace-line 240ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
+  animation: workspace-line 480ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
 }
 .workspace-wipe i:nth-child(2) {
   width: 7%;
   background: #1737d11a;
-  animation-delay: 15ms;
+  animation-delay: 35ms;
 }
 .workspace-wipe i:nth-child(3) {
   width: 1px;
-  animation-delay: 30ms;
+  animation-delay: 65ms;
   background: #10111366;
 }
 .export-preview-body {
@@ -2532,16 +2545,6 @@ button.btn:focus-visible::after {
 }
 .story-table th.frozen-column {
   padding: 6px;
-}
-@keyframes workspace-enter {
-  from {
-    opacity: 0.35;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 @keyframes workspace-line {
   0% {
@@ -2838,7 +2841,7 @@ button.btn:focus-visible::after {
   color: var(--accent);
 }
 .settings-page {
-  animation: settings-enter 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: settings-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
   min-height: 330px;
 }
 .project-settings-content {
@@ -2853,7 +2856,7 @@ button.btn:focus-visible::after {
   animation: backdrop-enter 180ms ease both;
 }
 .modal-backdrop > .modal {
-  animation: dialog-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: dialog-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .modal-backdrop.dialog-exit {
   pointer-events: none;
@@ -3035,7 +3038,7 @@ button.btn:focus-visible::after {
     linear-gradient(#10111305 1px, transparent 1px),
     linear-gradient(90deg, #10111305 1px, transparent 1px);
   background-size: 24px 24px;
-  animation: settings-enter 180ms ease;
+  animation: settings-enter 320ms ease;
 }
 .pdf-page-canvas {
   width: 100%;
@@ -3050,7 +3053,7 @@ button.btn:focus-visible::after {
   flex-shrink: 0;
   box-shadow: 0 4px 20px #10111314;
   background: #fff;
-  animation: settings-enter 180ms ease;
+  animation: settings-enter 320ms ease;
 }
 .preview-loading {
   display: grid;
@@ -3068,5 +3071,65 @@ button.btn:focus-visible::after {
   .pdf-page-stage,
   .pdf-page-canvas canvas {
     animation: none;
+  }
+}
+
+html[data-simplify-animations='true'] *,
+html[data-simplify-animations='true'] *::before,
+html[data-simplify-animations='true'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-simplify-animations='true'] .workspace-wipe {
+  display: none;
+}
+html[data-simplify-animations='true'] .workspace-page {
+  transform: none;
+  transition:
+    opacity 120ms ease,
+    visibility 0s 120ms !important;
+}
+html[data-simplify-animations='true'] .workspace-page.active {
+  transition-delay: 0s !important;
+}
+html[data-simplify-animations='true'] .top-action:hover:not(:disabled),
+html[data-simplify-animations='true'] .top-action:focus-visible {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page {
+    transform: none;
+    transition:
+      opacity 120ms ease,
+      visibility 0s 120ms !important;
+  }
+  .workspace-page.active {
+    transition-delay: 0s !important;
+  }
+}
+
+@keyframes simple-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+html[data-simplify-animations='true'] .settings-page,
+html[data-simplify-animations='true'] .modal-backdrop,
+html[data-simplify-animations='true'] .pdf-preview,
+html[data-simplify-animations='true'] .pdf-page-canvas {
+  animation: simple-fade-in 120ms ease both !important;
+}
+html[data-simplify-animations='true'] .dialog-exit {
+  animation: backdrop-exit 120ms ease both !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-page,
+  .modal-backdrop,
+  .pdf-preview,
+  .pdf-page-canvas {
+    animation: simple-fade-in 120ms ease both !important;
   }
 }

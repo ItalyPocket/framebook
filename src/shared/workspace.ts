@@ -9,6 +9,7 @@ export interface AppSettings {
   autosave: boolean
   autosaveSeconds: number
   backupLimit: number
+  simplifyAnimations: boolean
   copyMedia: boolean
 }
 export interface ProjectEntry {

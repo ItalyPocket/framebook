@@ -124,6 +124,7 @@ export function StoryboardEditor(): JSX.Element | null {
       }
       const result = await window.sbr.preparePreview({
         storyboard: {
+          projectName: doc.name,
           title: board.title,
           description: board.description,
           columns: orderedColumns,

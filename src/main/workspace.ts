@@ -38,6 +38,7 @@ export async function getSettings(): Promise<AppSettings> {
     autosave: true,
     autosaveSeconds: 60,
     backupLimit: 5,
+    simplifyAnimations: false,
     copyMedia: true
   }
   const stored = await readFile(join(app.getPath('userData'), 'settings.json'), 'utf8')
@@ -186,6 +187,7 @@ export function setupWorkspace(): void {
     }
     try {
       doc.name = name.trim()
+      doc.storyboard.title = name.trim()
       await saveProject(target, JSON.stringify(doc, null, 2))
     } catch (error) {
       if (target !== folder) await rename(target, folder)

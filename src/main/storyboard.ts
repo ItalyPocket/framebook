@@ -43,7 +43,13 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
     if (input.shots.some((shot) => shot.startS !== null && shot.endS !== null && shot.endS < shot.startS)) throw new Error(t('End time must follow start time.', {}, input.language))
     await mkdir(input.exportsRoot, { recursive: true })
     const folder = await mkdtemp(join(input.exportsRoot, 'storyboard-'))
-    path = join(folder, `storyboard.${input.kind}`)
+    const name = Array.from((input.projectName ?? input.title).trim())
+      .filter((char) => char.charCodeAt(0) >= 32)
+      .join('')
+      .replace(/[\\/:*?"<>|]/g, '-')
+      .replace(/[. ]+$/, '')
+      .slice(0, 100) || 'Untitled'
+    path = join(folder, input.kind === 'pdf' ? `${name}分镜本.pdf` : 'storyboard.csv')
     const tr = (key: string): string => t(key, {}, input.language)
     const columns = input.columns
     const cellText = (shot: typeof input.shots[number], columnId: string): string => {

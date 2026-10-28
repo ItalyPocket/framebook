@@ -55,6 +55,7 @@ test('project library, recovery, media folders, duration and exact export previe
       { dir, source }
     )
     expect(initial.settings.backupLimit).toBe(5)
+    expect(initial.settings.simplifyAnimations).toBe(false)
     await expect(page.locator('.storyboard-status')).toContainText('已填写: 0/2')
     await page.locator('.story-table tbody tr').first().hover()
     await page.getByRole('button', { name: '由入／出点计算', exact: true }).first().click()
@@ -79,7 +80,7 @@ test('project library, recovery, media folders, duration and exact export previe
     await page.evaluate(() => window.__sbr.store.getState().removeStoryColumn('duration'))
     await expect(page.locator('.storyboard-status')).not.toContainText('总时长')
     await page.evaluate(() => window.__sbr.store.getState().undo())
-    await page.screenshot({ path: join(outputs, 'storyboard.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'storyboard.png') })
     const backups = await page.evaluate(async () => {
       const state = window.__sbr.store.getState()
       for (let index = 0; index < 8; index++) {
@@ -94,12 +95,30 @@ test('project library, recovery, media folders, duration and exact export previe
     expect(backups).toHaveLength(5)
     expect(existsSync(join(initial.folder, '.autosave', backups[0].file, 'media'))).toBe(false)
     await page.getByRole('button', { name: '设置', exact: true }).click()
-    await page.screenshot({ path: join(outputs, 'settings.png') })
+    await page.getByRole('checkbox', { name: '简化动画', exact: true }).check()
+    await expect(page.locator('html')).toHaveAttribute('data-simplify-animations', 'true')
+    expect(
+      await page.evaluate(async () => (await window.sbr.getSettings()).simplifyAnimations)
+    ).toBe(true)
+    await page.getByRole('checkbox', { name: '简化动画', exact: true }).uncheck()
+    await expect(page.locator('html')).toHaveAttribute('data-simplify-animations', 'false')
+    await page.evaluate(() => {
+      const state = window.__sbr.store.getState()
+      state.setWorkspace('gallery')
+      state.setWorkspace('capture')
+      state.setWorkspace('storyboard')
+    })
+    expect(
+      await page
+        .locator('.workspace-page.active')
+        .evaluate((element) => getComputedStyle(element).transitionDuration)
+    ).toContain('0.48s')
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'settings.png') })
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).fill('10')
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).blur()
     await page.getByRole('checkbox', { name: '开启自动保存', exact: true }).check()
     await page.getByRole('button', { name: '项目设置', exact: true }).click()
-    await page.screenshot({ path: join(outputs, 'project-settings.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'project-settings.png') })
     await page.getByRole('button', { name: '完成', exact: true }).click()
     await page.evaluate(() => {
       const state = window.__sbr.store.getState()
@@ -121,7 +140,7 @@ test('project library, recovery, media folders, duration and exact export previe
     await page.getByLabel('移入文件夹').selectOption({ label: 'References' })
     await page.locator('.media-folder').click()
     await expect(page.locator('.bin-item')).toHaveCount(1)
-    await page.screenshot({ path: join(outputs, 'media-library.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'media-library.png') })
     const portability = await page.evaluate(
       async ({ source }) => {
         const state = window.__sbr.store.getState()
@@ -179,6 +198,7 @@ test('project library, recovery, media folders, duration and exact export previe
           }
         ]
         const request = {
+          projectName: '广告片/测试',
           title: 'Pagination test',
           description: '',
           exportsRoot: dir,
@@ -207,6 +227,7 @@ test('project library, recovery, media folders, duration and exact export previe
       },
       { dir }
     )
+    expect(exportResult.pdf).toContain('广告片-测试分镜本.pdf')
     expect(Array.from(readFileSync(exportResult.pdf))).toEqual(exportResult.bytes)
     expect(readFileSync(exportResult.pdf).subarray(0, 4).toString()).toBe('%PDF')
     expect(exportResult.csv).toContain('END_OF_CONTENT')
@@ -219,18 +240,24 @@ test('project library, recovery, media folders, duration and exact export previe
     await expect(page.locator('.dialog-exit')).toHaveCount(0)
     await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1')
     await expect(page.locator('.pdf-page-canvas')).toHaveAttribute('data-ready', 'true')
-    await page.screenshot({ path: join(outputs, 'pdf-preview.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'pdf-preview.png') })
     await page.getByRole('button', { name: '取消', exact: true }).click()
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]!.setContentSize(1100, 700)
     )
     await expect(page.locator('.storyboard-status')).toBeVisible()
     await expect(page.locator('.dialog-exit')).toHaveCount(0)
-    await page.screenshot({ path: join(outputs, 'storyboard-1100.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'storyboard-1100.png') })
     await page.locator('.project-name-edit').click()
     await page.getByRole('textbox', { name: '项目名称', exact: true }).fill('Inline rename')
     await page.getByRole('textbox', { name: '项目名称', exact: true }).press('Enter')
     await expect(page.locator('.project-name-edit')).toContainText('Inline rename')
+    const renamedDoc = await page.evaluate(async () => {
+      const state = window.__sbr.store.getState()
+      return JSON.parse((await window.sbr.loadProject(state.projectFolder)).json)
+    })
+    expect(renamedDoc.name).toBe('Inline rename')
+    expect(renamedDoc.storyboard.title).toBe('Inline rename')
     await expect(page.locator('#root')).not.toHaveAttribute('inert')
     await page.getByRole('button', { name: '设置', exact: true }).click()
     await page.getByRole('button', { name: '项目设置', exact: true }).click()
@@ -262,7 +289,7 @@ test('project library, recovery, media folders, duration and exact export previe
     await expect(page.locator('.dialog-exit')).toHaveCount(0)
     await expect(page.getByRole('dialog')).toHaveCSS('opacity', '1')
     await expect(page.locator('.project-card')).toContainText('Inline rename')
-    await page.screenshot({ path: join(outputs, 'project-library.png') })
+    await page.screenshot({ animations: 'disabled', path: join(outputs, 'project-library.png') })
     await page.keyboard.press('Escape')
     expect(errors).toEqual([])
     console.log(
