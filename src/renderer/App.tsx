@@ -8,7 +8,7 @@ import { t } from '@shared/i18n'
 import { useSettings } from './settings'
 import { ProjectLibrary, SettingsDialog } from './components/ProjectManager'
 import { ActionLabel, TopAction } from './components/TopActions'
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
 import { usePreference } from './components/Controls'
 import { ArtComposition } from './components/ArtComposition'
 import { useStore, currentProjectJson } from './store'
@@ -293,10 +293,10 @@ export function App(): JSX.Element {
   }, [folder, markSaved])
 
   const overlays = (
-    <>
+    <Fragment key="application-overlays">
       {panel === 'library' && <ProjectLibrary onClose={() => setPanel(null)} />}
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
-    </>
+    </Fragment>
   )
   if (!doc) {
     return (

@@ -116,6 +116,9 @@ test('project library, recovery, media folders, duration and exact export previe
     await page.screenshot({ animations: 'disabled', path: join(outputs, 'settings.png') })
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).fill('10')
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).blur()
+    await expect
+      .poll(() => page.evaluate(async () => (await window.sbr.getSettings()).autosaveSeconds))
+      .toBe(10)
     await page.getByRole('checkbox', { name: '开启自动保存', exact: true }).check()
     await page.getByRole('button', { name: '项目设置', exact: true }).click()
     await page.screenshot({ animations: 'disabled', path: join(outputs, 'project-settings.png') })
