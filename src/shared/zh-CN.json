@@ -364,5 +364,6 @@
   "Template name": "模板名称",
   "Rename": "重命名",
   "Delete": "删除",
-  "Delete this template?": "确定删除此模板吗？"
+  "Delete this template?": "确定删除此模板吗？",
+  "Calculate from in/out": "按入点与出点计算"
 }

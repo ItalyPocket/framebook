@@ -90,6 +90,20 @@ export function StoryboardEditor(): JSX.Element | null {
   }
   const cellInput = (shotId: string, column: StoryColumn, value: StoryCell): JSX.Element => {
     const update = (next: StoryCell): void => useStore.getState().updateStoryCell(shotId, column.id, next)
+    if (column.id === 'duration') {
+      const shot = board.shots.find((item) => item.id === shotId)
+      return <div className="story-single"><input aria-label={column.name} type="number" min="0" step="0.01" value={typeof value === 'string' || typeof value === 'number' ? value : ''} onChange={(event) => update(event.target.value === '' ? '' : Number(event.target.value))}/><button className="text-button" disabled={!shot || shot.startS === null || shot.endS === null || shot.endS < shot.startS} onClick={() => update(Number((shot!.endS! - shot!.startS!).toFixed(2)))}>{t('Calculate from in/out')}</button></div>
+    }
+    if (column.id === 'startS' || column.id === 'endS') return <input aria-label={column.name} type="number" min="0" step="0.01" value={typeof value === 'string' || typeof value === 'number' ? value : ''} onChange={(event) => {
+      const nextValue = event.target.value === '' ? null : Number(event.target.value)
+      useStore.getState().mutate(`field:${shotId}:${column.id}`, (next) => {
+        const shot = next.storyboard.shots.find((item) => item.id === shotId)
+        if (!shot) return
+        shot.cells[column.id] = event.target.value
+        if (column.id === 'startS') shot.startS = nextValue
+        else shot.endS = nextValue
+      })
+    }}/>
     if (column.type === 'image') {
       const images = (value as StoryImage[] | undefined) ?? []
       return <div className="story-cell-images">{images.map((image, index) => <div key={image.frame.id} className="story-cell-image"><StillImage frame={image.frame}/><button aria-label={t('Remove image')} onClick={() => update(images.filter((_, i) => i !== index))}>×</button></div>)}<div className="story-image-add"><button className="btn small" onClick={() => { setPicker({ shotId, columnId: column.id }); setChosen([]) }}>{t('Add from gallery')}</button><button className="btn small" onClick={() => void window.sbr.importImagesDialog().then((paths) => importToCell(paths, shotId, column.id))}>{t('Import image')}</button></div></div>

@@ -289,6 +289,8 @@ function sanitizeStoryboard(value: unknown, frames: Frame[], issues: ParseIssue[
       })
     }
     for (const key of ['startS', 'endS'] as const) if (typeof shot[key] === 'number' && Number.isFinite(shot[key]) && shot[key] >= 0) result[key] = shot[key] as number
+    if ('startS' in result.cells) result.cells.startS = result.startS ?? ''
+    if ('endS' in result.cells) result.cells.endS = result.endS ?? ''
     if (result.startS !== null && result.endS !== null && result.endS < result.startS) result.endS = null
     shots.push(result)
   }
@@ -306,7 +308,9 @@ export function defaultStoryColumns(): StoryColumn[] {
     { id: 'movement', name: '运镜', type: 'single', width: 110, visible: true, options: ['固定', '推', '拉', '摇', '移', '跟', '升降', '手持', '航拍'] },
     { id: 'lens', name: '焦段', type: 'single', width: 110, visible: false, options: ['14mm', '24mm', '35mm', '50mm', '85mm', '135mm'] },
     { id: 'cameraAngle', name: '机位', type: 'single', width: 110, visible: false, options: ['平视', '俯拍', '仰拍', '顶拍', '低机位', '主观'] },
-    { id: 'transition', name: '转场', type: 'single', width: 110, visible: false, options: ['切', '淡入淡出', '叠化', '划像', '匹配剪辑'] }
+    { id: 'transition', name: '转场', type: 'single', width: 110, visible: false, options: ['切', '淡入淡出', '叠化', '划像', '匹配剪辑'] },
+    { id: 'startS', name: '入点（秒）', type: 'number', width: 110, visible: false, options: [] },
+    { id: 'endS', name: '出点（秒）', type: 'number', width: 110, visible: false, options: [] }
   ]
 }
 
