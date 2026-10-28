@@ -5,6 +5,8 @@ directories:
 files:
   - out/**
   - package.json
+  - "!node_modules/pdfjs-dist/**"
+  - "!node_modules/@napi-rs/**"
   # ffmpeg-static is external to the main bundle — ship the real package
   # (the binary is what makes frame extraction and exports work on machines
   # without ffmpeg).
@@ -20,6 +22,19 @@ mac:
   # Unsigned by default. For distribution beyond your own machines, set
   # identity + notarize (Apple Developer ID).
   identity: null
+  extendInfo:
+    CFBundleDocumentTypes:
+      - CFBundleTypeName: Framebook Project
+        CFBundleTypeRole: Editor
+        LSHandlerRank: Owner
+        LSTypeIsPackage: true
+        LSItemContentTypes: [com.italypocket.framebook.project]
+    UTExportedTypeDeclarations:
+      - UTTypeIdentifier: com.italypocket.framebook.project
+        UTTypeDescription: Framebook Project
+        UTTypeConformsTo: [com.apple.package]
+        UTTypeTagSpecification:
+          public.filename-extension: [sbref]
 win:
   target: nsis
   icon: build/icon.ico

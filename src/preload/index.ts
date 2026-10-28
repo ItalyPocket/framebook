@@ -3,6 +3,7 @@
  * nothing else from Node.
  */
 
+import type { AppSettings, ProjectEntry, RecoveryEntry, ExportPreview } from '../shared/workspace'
 import { contextBridge, ipcRenderer } from 'electron'
 import type { DescribeResult } from '../shared/types'
 import type { ExportFrameInput, StoryboardExportInput, FileExportResult } from '../shared/exports'
@@ -12,6 +13,7 @@ export interface ImportedMedia {
   kind: 'image' | 'video'
   sourceFile: string
   workingFile?: string
+  externalPath?: string
   name: string
   width: number
   height: number
@@ -47,6 +49,19 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  preparePreview(request: { storyboard?: StoryboardExportInput; frames?: ExportBoardInput; format?: 'png' | 'jpg' }): Promise<ExportPreview>
+  confirmPreview(id: string): Promise<string | null>
+  cancelPreview(id: string): Promise<void>
+  getSettings(): Promise<AppSettings>
+  setSettings(patch: Partial<AppSettings>): Promise<AppSettings>
+  chooseDirectory(): Promise<string | null>
+  listProjects(): Promise<ProjectEntry[]>
+  createProject(name: string): Promise<string>
+  renameProject(folder: string, name: string, json: string): Promise<string>
+  listBackups(folder: string): Promise<RecoveryEntry[]>
+  readBackup(folder: string, file: string): Promise<string>
+  shareProject(folder: string, json: string): Promise<string | null>
+
   onHistory(cb: (action: 'undo' | 'redo') => void): () => void
   exportStoryboard(input: StoryboardExportInput): Promise<FileExportResult>
   exportNumbered(input: ExportBoardInput, format: 'png' | 'jpg'): Promise<FileExportResult>
@@ -98,6 +113,18 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  preparePreview: (request) => ipcRenderer.invoke('preview:prepare', request),
+  confirmPreview: (id) => ipcRenderer.invoke('preview:confirm', id),
+  cancelPreview: (id) => ipcRenderer.invoke('preview:cancel', id),
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+  chooseDirectory: () => ipcRenderer.invoke('settings:directory'),
+  listProjects: () => ipcRenderer.invoke('library:list'),
+  createProject: (name) => ipcRenderer.invoke('library:create', name),
+  renameProject: (folder, name, json) => ipcRenderer.invoke('library:rename', folder, name, json),
+  listBackups: (folder) => ipcRenderer.invoke('library:backups', folder),
+  readBackup: (folder, file) => ipcRenderer.invoke('library:readBackup', folder, file),
+  shareProject: (folder, json) => ipcRenderer.invoke('library:share', folder, json),
   onHistory: (cb) => {
     const listener = (_event: unknown, action: 'undo' | 'redo'): void => cb(action)
     ipcRenderer.on('history:action', listener)

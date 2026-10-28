@@ -1,5 +1,13 @@
+import type { ExportPreview } from '@shared/workspace'
+import { ExportPreviewDialog } from '../components/ExportPreview'
 import { useRef, useState } from 'react'
-import { createFrame, newId } from '@shared/schema'
+import {
+  createFrame,
+  newId,
+  storyColumnPresets,
+  minimumColumnWidth,
+  formatStoryDuration
+} from '@shared/schema'
 import type { StoryColumn, StoryImage } from '@shared/types'
 import { t, type Language } from '@shared/i18n'
 import { useStore } from '../store'
@@ -21,7 +29,9 @@ function loadTemplates(): ColumnTemplate[] {
     return Array.isArray(value)
       ? value.filter(
           (item) =>
-            typeof item.id === 'string' && typeof item.name === 'string' && Array.isArray(item.columns)
+            typeof item.id === 'string' &&
+            typeof item.name === 'string' &&
+            Array.isArray(item.columns)
         )
       : []
   } catch {
@@ -32,6 +42,8 @@ function loadTemplates(): ColumnTemplate[] {
 export function StoryboardEditor(): JSX.Element | null {
   const doc = useStore((s) => s.doc)
   const folder = useStore((s) => s.projectFolder)
+  const [exportPreview, setExportPreview] = useState<ExportPreview | null>(null)
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape')
   const [exporting, setExporting] = useState(false)
   const [language, setLanguage] = useState<Language>('zh-CN')
   const [density, setDensity] = usePreference('framebook.ui.density', 'medium', [
@@ -43,7 +55,7 @@ export function StoryboardEditor(): JSX.Element | null {
   const [chosen, setChosen] = useState<string[]>([])
   const [editingColumn, setEditingColumn] = useState<StoryColumn | null | undefined>()
   const [preview, setPreview] = useState<StoryImage | null>(null)
-  const [panel, setPanel] = useState<'templates' | 'columns' | 'export' | null>(null)
+  const [panel, setPanel] = useState<'templates' | 'columns' | 'export' | 'addColumn' | null>(null)
   const [confirmation, setConfirmation] = useState<{ message: string; action(): void } | null>(null)
   const [templates, setTemplates] = useState<ColumnTemplate[]>(loadTemplates)
   const [templateId, setTemplateId] = useState('')
@@ -64,19 +76,22 @@ export function StoryboardEditor(): JSX.Element | null {
     setTemplates(next)
     localStorage.setItem(templateStorageKey, JSON.stringify(next))
   }
-  const confirm = (message: string, action: () => void): void => setConfirmation({ message, action })
+  const confirm = (message: string, action: () => void): void =>
+    setConfirmation({ message, action })
   const resizeColumn = (event: React.PointerEvent, column: StoryColumn): void => {
     event.preventDefault()
     const target = event.currentTarget as HTMLElement
     target.setPointerCapture(event.pointerId)
     const start = event.clientX
     const table = target.closest('table')!
-    const col = table.querySelector<HTMLTableColElement>(`col[data-column="${CSS.escape(column.id)}"]`)!
+    const col = table.querySelector<HTMLTableColElement>(
+      `col[data-column="${CSS.escape(column.id)}"]`
+    )!
     const originalWidth = table.getBoundingClientRect().width
     let width = column.width
     const move = (next: PointerEvent): void => {
       width = Math.max(
-        column.type === 'image' ? 180 : 100,
+        minimumColumnWidth(column),
         Math.min(800, column.width + next.clientX - start)
       )
       col.style.width = `${width}px`
@@ -107,21 +122,25 @@ export function StoryboardEditor(): JSX.Element | null {
         }
         shots.push({ ...shot, rendered: [], imageRoles: [], renderedByColumn, rolesByColumn })
       }
-      const result = await window.sbr.exportStoryboard({
-        title: board.title,
-        description: board.description,
-        columns: orderedColumns,
-        exportsRoot: `${folder}/exports`,
-        shots,
-        language,
-        layout: 'table',
-        orientation: 'landscape',
-        kind
+      const result = await window.sbr.preparePreview({
+        storyboard: {
+          title: board.title,
+          description: board.description,
+          columns: orderedColumns,
+          exportsRoot: `${folder}/exports`,
+          shots,
+          language,
+          layout: 'table',
+          orientation,
+          kind
+        }
       })
-      if (!result.ok) throw new Error(result.error)
-      useStore.getState().toast(t('Export complete.'), 'success')
+      setPanel(null)
+      setExportPreview(result)
     } catch (error) {
-      useStore.getState().toast(t('Operation failed: {error}', { error: (error as Error).message }), 'error')
+      useStore
+        .getState()
+        .toast(t('Operation failed: {error}', { error: (error as Error).message }), 'error')
     } finally {
       setExporting(false)
     }
@@ -200,7 +219,9 @@ export function StoryboardEditor(): JSX.Element | null {
       <div className={`story-image-add ${images.length ? 'contextual' : 'empty-image'}`}>
         <Menu label={t('Add image')} className="image-add-trigger">
           <MenuItem onClick={() => showPicker(shotId, column.id)}>{t('Add from gallery')}</MenuItem>
-          <MenuItem onClick={() => void importToCell(shotId, column.id)}>{t('Import image')}</MenuItem>
+          <MenuItem onClick={() => void importToCell(shotId, column.id)}>
+            {t('Import image')}
+          </MenuItem>
         </Menu>
       </div>
     </div>
@@ -244,7 +265,11 @@ export function StoryboardEditor(): JSX.Element | null {
             })
           }
         />
-        <button className="text-button" aria-expanded={details} onClick={() => setDetails(!details)}>
+        <button
+          className="text-button"
+          aria-expanded={details}
+          onClick={() => setDetails(!details)}
+        >
           {t('Synopsis')} {details ? '−' : '＋'}
         </button>
         {details && (
@@ -263,10 +288,10 @@ export function StoryboardEditor(): JSX.Element | null {
       <div className="story-table-scroll">
         <table
           className="story-table"
-          style={{ width: 64 + 56 + columns.reduce((sum, column) => sum + column.width, 0) }}
+          style={{ width: 40 + 56 + columns.reduce((sum, column) => sum + column.width, 0) }}
         >
           <colgroup>
-            <col style={{ width: 64 }} />
+            <col style={{ width: 40 }} />
             {orderedColumns.map((column) => (
               <col key={column.id} data-column={column.id} style={{ width: column.width }} />
             ))}
@@ -279,27 +304,39 @@ export function StoryboardEditor(): JSX.Element | null {
                 <th key={column.id} className={column.id === frozenId ? 'frozen-column' : ''}>
                   <div className="column-header">
                     <span title={column.name}>{t(column.name)}</span>
-                    <Menu label={t('Column menu') + ': ' + t(column.name)} className="column-menu contextual">
-                      <MenuItem onClick={() => setEditingColumn(column)}>{t('Edit column')}</MenuItem>
+                    <Menu
+                      label={t('Column menu') + ': ' + t(column.name)}
+                      className="column-menu contextual"
+                    >
+                      <MenuItem onClick={() => setEditingColumn(column)}>
+                        {t('Edit column')}
+                      </MenuItem>
                       <MenuItem
-                        onClick={() => useStore.getState().updateStoryColumn(column.id, { visible: false })}
+                        onClick={() =>
+                          useStore.getState().updateStoryColumn(column.id, { visible: false })
+                        }
                       >
                         {t('Hide column')}
                       </MenuItem>
                       <MenuItem
                         disabled={column.id === frozenId || board.columns.indexOf(column) === 0}
                         onClick={() =>
-                          useStore.getState().reorderStoryColumn(column.id, board.columns.indexOf(column) - 1)
+                          useStore
+                            .getState()
+                            .reorderStoryColumn(column.id, board.columns.indexOf(column) - 1)
                         }
                       >
                         {t('Move left')}
                       </MenuItem>
                       <MenuItem
                         disabled={
-                          column.id === frozenId || board.columns.indexOf(column) === board.columns.length - 1
+                          column.id === frozenId ||
+                          board.columns.indexOf(column) === board.columns.length - 1
                         }
                         onClick={() =>
-                          useStore.getState().reorderStoryColumn(column.id, board.columns.indexOf(column) + 1)
+                          useStore
+                            .getState()
+                            .reorderStoryColumn(column.id, board.columns.indexOf(column) + 1)
                         }
                       >
                         {t('Move right')}
@@ -329,7 +366,7 @@ export function StoryboardEditor(): JSX.Element | null {
                         event.preventDefault()
                         useStore.getState().updateStoryColumn(column.id, {
                           width: Math.max(
-                            column.type === 'image' ? 180 : 100,
+                            minimumColumnWidth(column),
                             Math.min(800, column.width + (event.key === 'ArrowRight' ? 20 : -20))
                           )
                         })
@@ -342,7 +379,7 @@ export function StoryboardEditor(): JSX.Element | null {
                 <button
                   className="icon-button add-column"
                   aria-label={t('Add column')}
-                  onClick={() => setEditingColumn(null)}
+                  onClick={() => setPanel('addColumn')}
                 >
                   ＋
                 </button>
@@ -408,7 +445,9 @@ export function StoryboardEditor(): JSX.Element | null {
                       <MenuItem
                         danger
                         onClick={() =>
-                          confirm(t('Delete this shot?'), () => useStore.getState().removeShot(shot.id))
+                          confirm(t('Delete this shot?'), () =>
+                            useStore.getState().removeShot(shot.id)
+                          )
                         }
                       >
                         {t('Remove')}
@@ -455,12 +494,65 @@ export function StoryboardEditor(): JSX.Element | null {
         <span>
           {board.shots.length} {t('shots')}
         </span>
+        {board.columns.some((column) => column.id === 'duration') &&
+          (() => {
+            const durations = board.shots
+              .map((shot) => shot.cells.duration)
+              .filter(
+                (value) =>
+                  value !== '' &&
+                  value !== null &&
+                  value !== undefined &&
+                  (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+              )
+              .map(Number)
+              .filter((value) => Number.isFinite(value) && value >= 0)
+            return (
+              <span>
+                {t('Total duration')}:{' '}
+                {formatStoryDuration(durations.reduce((sum, value) => sum + value, 0))}
+                {durations.length < board.shots.length &&
+                  ` · ${t('Filled')}: ${durations.length}/${board.shots.length}`}
+              </span>
+            )
+          })()}
         <span>
           {columns.length} {t('columns')}
         </span>
         <div className="spacer" />
         <span>{t('Click a cell to edit · Drag the handle to reorder')}</span>
       </footer>
+      {panel === 'addColumn' && (
+        <Dialog title={t('Add column')} onClose={() => setPanel(null)}>
+          <div className="preset-columns">
+            {storyColumnPresets()
+              .filter((preset) => !board.columns.some((column) => column.id === preset.id))
+              .map((preset) => (
+                <button
+                  className="btn"
+                  key={preset.id}
+                  onClick={() => {
+                    useStore.getState().addStoryColumn(preset)
+                    setPanel(null)
+                  }}
+                >
+                  {t(preset.name)}
+                </button>
+              ))}
+          </div>
+          <div className="modal-actions">
+            <button
+              className="btn primary"
+              onClick={() => {
+                setPanel(null)
+                setEditingColumn(null)
+              }}
+            >
+              {t('Custom column')}
+            </button>
+          </div>
+        </Dialog>
+      )}
       {editingColumn !== undefined && (
         <ColumnDialog column={editingColumn} onClose={() => setEditingColumn(undefined)} />
       )}
@@ -484,7 +576,11 @@ export function StoryboardEditor(): JSX.Element | null {
         </Dialog>
       )}
       {preview && (
-        <Dialog title={preview.frame.label || t('Preview image')} onClose={() => setPreview(null)} wide>
+        <Dialog
+          title={preview.frame.label || t('Preview image')}
+          onClose={() => setPreview(null)}
+          wide
+        >
           <div className="large-preview">
             <StillImage frame={preview.frame} />
           </div>
@@ -518,7 +614,9 @@ export function StoryboardEditor(): JSX.Element | null {
                   </span>
                 </label>
               ))}
-            {!doc.frames.length && <p className="hint">{t('Your next observation starts here.')}</p>}
+            {!doc.frames.length && (
+              <p className="hint">{t('Your next observation starts here.')}</p>
+            )}
           </div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setPicker(null)}>
@@ -546,7 +644,9 @@ export function StoryboardEditor(): JSX.Element | null {
                   type="checkbox"
                   checked={column.visible}
                   onChange={(event) =>
-                    useStore.getState().updateStoryColumn(column.id, { visible: event.target.checked })
+                    useStore
+                      .getState()
+                      .updateStoryColumn(column.id, { visible: event.target.checked })
                   }
                 />
                 <span>{t(column.name)}</span>
@@ -566,8 +666,7 @@ export function StoryboardEditor(): JSX.Element | null {
             <button
               className="btn primary"
               onClick={() => {
-                setPanel(null)
-                setEditingColumn(null)
+                setPanel('addColumn')
               }}
             >
               {t('Add column')}
@@ -584,7 +683,9 @@ export function StoryboardEditor(): JSX.Element | null {
               value={templateId}
               onChange={(event) => {
                 setTemplateId(event.target.value)
-                setTemplateName(templates.find((item) => item.id === event.target.value)?.name ?? '')
+                setTemplateName(
+                  templates.find((item) => item.id === event.target.value)?.name ?? ''
+                )
               }}
             >
               <option value="">{t('Save a new template')}</option>
@@ -667,7 +768,8 @@ export function StoryboardEditor(): JSX.Element | null {
                   for (const shot of next.storyboard.shots)
                     for (const column of replacements)
                       if (!(column.id in shot.cells))
-                        shot.cells[column.id] = column.type === 'image' || column.type === 'multi' ? [] : ''
+                        shot.cells[column.id] =
+                          column.type === 'image' || column.type === 'multi' ? [] : ''
                 })
                 setPanel(null)
               }}
@@ -676,6 +778,9 @@ export function StoryboardEditor(): JSX.Element | null {
             </button>
           </div>
         </Dialog>
+      )}
+      {exportPreview && (
+        <ExportPreviewDialog preview={exportPreview} onClose={() => setExportPreview(null)} />
       )}
       {panel === 'export' && (
         <Dialog
@@ -695,12 +800,26 @@ export function StoryboardEditor(): JSX.Element | null {
               <option value="en">English</option>
             </select>
           </label>
+          <label className="field">
+            {t('Page orientation')}
+            <select
+              value={orientation}
+              onChange={(event) => setOrientation(event.target.value as 'portrait' | 'landscape')}
+            >
+              <option value="landscape">{t('Landscape')}</option>
+              <option value="portrait">{t('Portrait')}</option>
+            </select>
+          </label>
           <p className="hint">{t('Export visible columns in their current order.')}</p>
           <div className="modal-actions">
             <button className="btn" disabled={exporting} onClick={() => void runExport('csv')}>
               {t('Shot list (CSV)')}
             </button>
-            <button className="btn primary" disabled={exporting} onClick={() => void runExport('pdf')}>
+            <button
+              className="btn primary"
+              disabled={exporting}
+              onClick={() => void runExport('pdf')}
+            >
               {t(exporting ? 'Exporting…' : 'PDF storyboard')}
             </button>
           </div>

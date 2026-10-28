@@ -1,3 +1,4 @@
+import { paginateStoryboard } from './pagination'
 import { BrowserWindow } from 'electron'
 import { mkdir, mkdtemp, readFile, writeFile, copyFile, rm } from 'fs/promises'
 import { join } from 'path'
@@ -76,15 +77,18 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
       rows.push(`<tr>${cells.join('')}</tr>`)
     }
     const headers = columns.map((column) => `<th>${escape(tr(column.name))}</th>`).join('')
+    const widths = columns.map((column) => `<col style="width:${column.width / columns.reduce((sum, item) => sum + item.width, 0) * 100}%"/>`).join('')
     const html = `<!doctype html><html lang="${input.language}"><head><meta charset="UTF-8"><style>
-      *{box-sizing:border-box}body{font:10pt -apple-system,'PingFang SC',sans-serif;color:#111;margin:0}h1{font-size:24pt;margin:5mm 0}header{padding:6mm;border-bottom:2mm solid #102c59}header p{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;table-layout:fixed}thead{display:table-header-group}th{background:#080808;color:#fff;padding:4mm 2mm}td{border:1px solid #777;padding:2mm;vertical-align:middle;overflow-wrap:anywhere;white-space:pre-wrap}tr{break-inside:avoid}figure{margin:0 0 2mm;break-inside:avoid}img{width:100%;height:35mm;object-fit:contain}.pictures{display:flex;flex-direction:column;gap:2mm}figcaption{font-size:7pt}footer{font-size:8pt;margin-top:6mm;border-top:1px solid #102c59;padding:3mm}
-    </style></head><body><header><span>帧册 / FRAMEBOOK</span><h1>${escape(input.title)}</h1><p>${escape(input.description)}</p><span>${input.shots.length} ${escape(tr('shots'))}</span></header><table><thead><tr>${headers}</tr></thead><tbody>${rows.join('')}</tbody></table><footer>Framebook · ItalyPocket / Based on Storyboard Reference Studio by Sam Wasserman</footer></body></html>`
+      *{box-sizing:border-box}body{width:${input.orientation === 'landscape' ? 276 : 189}mm;font:9pt -apple-system,'PingFang SC',sans-serif;line-height:1.4;color:#101113;margin:0}h1{font-size:18pt;margin:2mm 0}header{padding:0 0 3mm;border-bottom:1px solid #1737d1;margin-bottom:3mm}header p{white-space:pre-wrap;overflow-wrap:anywhere;margin:1mm 0;}header>span{font-size:8pt}table{border-collapse:collapse;width:100%;table-layout:fixed}thead{display:table-header-group}th{background:#ecefeb;color:#101113;padding:2mm 1mm;border:1px solid #a8aaa7;font-size:8pt;overflow-wrap:anywhere}td{border:1px solid #a8aaa7;padding:2mm;vertical-align:top;overflow-wrap:anywhere;white-space:pre-wrap}tr{break-inside:avoid}figure{margin:0 0 2mm;break-inside:avoid}img{width:100%;height:32mm;object-fit:contain}.pictures{display:flex;flex-direction:column;gap:2mm}figcaption{font-size:6pt;white-space:normal;overflow-wrap:anywhere}.print-page{break-after:page}.print-page:last-child{break-after:auto}.continued-row td{border-top-style:dashed}.continued-row td:first-child:before{content:"↳ ";color:#1737d1}footer{font-size:8pt;margin-top:3mm}
+
+    </style></head><body><header><span>帧册 / FRAMEBOOK</span><h1>${escape(input.title)}</h1><p>${escape(input.description)}</p><span>${input.shots.length} ${escape(tr('shots'))}</span></header><table><colgroup>${widths}</colgroup><thead><tr>${headers}</tr></thead><tbody>${rows.join('')}</tbody></table><footer>Framebook · ItalyPocket / Based on Storyboard Reference Studio by Sam Wasserman</footer></body></html>`
     const htmlPath = join(folder, 'storyboard.html')
     await writeFile(htmlPath, html, 'utf-8')
     win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
     await win.loadFile(htmlPath)
     await win.webContents.executeJavaScript('Promise.all([document.fonts.ready, ...Array.from(document.images, image => image.decode())])')
-    await writeFile(path, await win.webContents.printToPDF({ landscape: input.orientation === 'landscape', pageSize: 'A4', printBackground: true, margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } }))
+    await win.webContents.executeJavaScript(`(${paginateStoryboard.toString()})(${(input.orientation === 'landscape' ? 187 : 274) * 96 / 25.4})`)
+    await writeFile(path, await win.webContents.printToPDF({ landscape: input.orientation === 'landscape', pageSize: 'A4', printBackground: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: '<div style="font-size:8px;width:100%;text-align:center;color:#555">Framebook · <span class="pageNumber"></span> / <span class="totalPages"></span></div>', margins: { top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 } }))
     return { ok: true, path }
   } catch (error) { return { ok: false, path, error: (error as Error).message } }
   finally { win?.destroy(); if (work) await rm(work, { recursive: true, force: true }).catch(() => {}) }

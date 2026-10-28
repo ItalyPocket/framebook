@@ -1,3 +1,5 @@
+import type { ExportPreview } from '@shared/workspace'
+import { ExportPreviewDialog } from '../components/ExportPreview'
 import { useMemo, useState } from 'react'
 import { t } from '@shared/i18n'
 import { useStore } from '../store'
@@ -8,11 +10,19 @@ import { Dialog, Menu, MenuItem, usePreference } from '../components/Controls'
 
 export function Gallery(): JSX.Element {
   const rawFrames = useStore((s) => s.doc?.frames)
-  const frames = useMemo(() => [...(rawFrames ?? [])].sort((a, b) => a.order - b.order), [rawFrames])
+  const frames = useMemo(
+    () => [...(rawFrames ?? [])].sort((a, b) => a.order - b.order),
+    [rawFrames]
+  )
   const mode = useStore((s) => s.doc?.settings.gallerySort)
   const [selected, setSelected] = useState<string[]>([])
+  const [exportPreview, setExportPreview] = useState<ExportPreview | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [size, setSize] = usePreference('framebook.ui.gallerySize', '260', ['200', '260', '340'] as const)
+  const [size, setSize] = usePreference('framebook.ui.gallerySize', '260', [
+    '200',
+    '260',
+    '340'
+  ] as const)
   const [removing, setRemoving] = useState<string | null>(null)
   const chosen = frames.filter((frame) => selected.includes(frame.id))
   const add = (grouped: boolean): void => {
@@ -42,16 +52,15 @@ export function Gallery(): JSX.Element {
     if (!s.projectFolder || !s.doc) return
     setExporting(true)
     try {
-      const result = await window.sbr.exportNumbered(
-        {
+      const result = await window.sbr.preparePreview({
+        frames: {
           projectName: s.doc.name,
           exportsRoot: `${s.projectFolder}/exports`,
           frames: await buildExportInputs(chosen.length ? chosen : frames)
         },
         format
-      )
-      if (!result.ok) throw new Error(result.error)
-      s.toast(t('Export complete.'), 'success')
+      })
+      setExportPreview(result)
     } catch (error) {
       s.toast(t('Operation failed: {error}', { error: (error as Error).message }), 'error')
     } finally {
@@ -60,6 +69,9 @@ export function Gallery(): JSX.Element {
   }
   return (
     <section className="gallery-workspace">
+      {exportPreview && (
+        <ExportPreviewDialog preview={exportPreview} onClose={() => setExportPreview(null)} />
+      )}
       <ArtComposition />
       <header className="section-header">
         <div>
@@ -75,7 +87,9 @@ export function Gallery(): JSX.Element {
         </button>
         <button
           className="btn"
-          onClick={() => setSelected(chosen.length === frames.length ? [] : frames.map((frame) => frame.id))}
+          onClick={() =>
+            setSelected(chosen.length === frames.length ? [] : frames.map((frame) => frame.id))
+          }
         >
           {t(chosen.length === frames.length && frames.length ? 'Deselect all' : 'Select all')}
         </button>
@@ -100,12 +114,18 @@ export function Gallery(): JSX.Element {
           {t('Sort by source time')}
         </button>
       </div>
-      <div className="gallery-grid" style={{ '--gallery-size': `${size}px` } as React.CSSProperties}>
+      <div
+        className="gallery-grid"
+        style={{ '--gallery-size': `${size}px` } as React.CSSProperties}
+      >
         {!frames.length && (
           <div className="empty-editor">
             <h2>{t('Your next observation starts here.')}</h2>
             <p>{t('Capture a frame, then build your storyboard.')}</p>
-            <button className="btn primary" onClick={() => useStore.getState().setWorkspace('capture')}>
+            <button
+              className="btn primary"
+              onClick={() => useStore.getState().setWorkspace('capture')}
+            >
               {t('Capture')}
             </button>
           </div>
@@ -138,7 +158,9 @@ export function Gallery(): JSX.Element {
                   checked={selected.includes(frame.id)}
                   onChange={(e) =>
                     setSelected(
-                      e.target.checked ? [...selected, frame.id] : selected.filter((id) => id !== frame.id)
+                      e.target.checked
+                        ? [...selected, frame.id]
+                        : selected.filter((id) => id !== frame.id)
                     )
                   }
                 />
@@ -205,14 +227,19 @@ export function Gallery(): JSX.Element {
         )}
         <div className="spacer" />
         <span className="hint">{t(chosen.length ? 'Export selected' : 'Export all')}</span>
-        <Menu label={t(exporting ? 'Exporting…' : 'Export…')} disabled={!frames.length || exporting}>
+        <Menu
+          label={t(exporting ? 'Exporting…' : 'Export…')}
+          disabled={!frames.length || exporting}
+        >
           <MenuItem onClick={() => void runExport('png')}>{t('Numbered PNG')}</MenuItem>
           <MenuItem onClick={() => void runExport('jpg')}>{t('Numbered JPG')}</MenuItem>
         </Menu>
       </footer>
       {removing && (
         <Dialog title={t('Remove')} onClose={() => setRemoving(null)}>
-          <p className="dialog-description">{t('Remove this frame? Storyboard copies will remain.')}</p>
+          <p className="dialog-description">
+            {t('Remove this frame? Storyboard copies will remain.')}
+          </p>
           <div className="modal-actions">
             <button className="btn" onClick={() => setRemoving(null)}>
               {t('Cancel')}

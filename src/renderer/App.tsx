@@ -5,7 +5,10 @@ import { t } from '@shared/i18n'
  * global keyboard map, autosave, credits.
  */
 
-import { useCallback, useEffect } from 'react'
+import { useSettings } from './settings'
+import { ProjectLibrary, SettingsDialog } from './components/ProjectManager'
+import { ActionLabel, TopAction } from './components/TopActions'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { usePreference } from './components/Controls'
 import { ArtComposition } from './components/ArtComposition'
 import { useStore, currentProjectJson } from './store'
@@ -36,60 +39,43 @@ function CreditLink({ url, children }: { url: string; children: string }): JSX.E
 export function Credits(): JSX.Element {
   return (
     <div className="credits">
-      {t("Created by Sam Wasserman ·")}{' '}
+      {t('Created by Sam Wasserman ·')}{' '}
       <CreditLink url="https://wassermanproductions.com">wassermanproductions.com</CreditLink> ·{' '}
       <CreditLink url="https://wasserman.ai">wasserman.ai</CreditLink>
       <br />
-      {t("Open source under Apache-2.0 — keep this credit when using or forking.")}</div>
+      {t('Open source under Apache-2.0 — keep this credit when using or forking.')}
+    </div>
   )
 }
 
-function Welcome(): JSX.Element {
-  const newProject = useStore((s) => s.newProject)
-  const loadFromJson = useStore((s) => s.loadFromJson)
-  const toast = useStore((s) => s.toast)
+function Welcome({ openLibrary }: { openLibrary(): void }): JSX.Element {
   const setHelpOpen = useStore((s) => s.setHelpOpen)
-
-  const onNew = useCallback(async () => {
-    const folder = await window.sbr.newProjectDialog()
-    if (!folder) return
-    const name = folder.split(/[/\\]/).pop()?.replace(/\.sbref$/, '') ?? t("Untitled")
-    newProject(folder, name)
-    const json = currentProjectJson()
-    if (json) {
-      try { await window.sbr.saveProject(folder, json); useStore.getState().markSaved(json); toast(t('Project saved.'), 'success') }
-      catch (error) { toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error') }
-    }
-  }, [newProject])
-
-  const onOpen = useCallback(async () => {
-    const folder = await window.sbr.openProjectDialog()
-    if (!folder) return
-    const { json, backupJson, backupNewer } = await window.sbr.loadProject(folder)
-    if (!json && !backupJson) {
-      toast(t("No project.json found in that folder."), 'error')
-      return
-    }
-    if (backupNewer && backupJson && loadFromJson(folder, backupJson)) {
-      toast(t("Restored unsaved work from the autosave backup — Save to keep it."), 'success')
-      return
-    }
-    if (json && loadFromJson(folder, json)) return
-    if (backupJson && loadFromJson(folder, backupJson)) {
-      toast(t("Recovered from autosave backup."), 'success')
-    }
-  }, [loadFromJson, toast])
-
   return (
     <div className="welcome">
-      <ArtComposition variant="welcome"/>
-      <div className="welcome-title"><span className="eyebrow">01 — A FIELD GUIDE TO MOVING IMAGES</span><h1>帧册<span>FRAME<br/>BOOK<span className="brand-dot">01</span></span></h1><div className="welcome-rule"/></div>
-      <p>
-        {t("Capture a frame. Understand a shot. Build your story.")}</p>
+      <ArtComposition variant="welcome" />
+      <div className="welcome-title">
+        <span className="eyebrow">01 — A FIELD GUIDE TO MOVING IMAGES</span>
+        <h1>
+          帧册
+          <span>
+            FRAME
+            <br />
+            BOOK<span className="brand-dot">01</span>
+          </span>
+        </h1>
+        <div className="welcome-rule" />
+      </div>
+      <p>{t('Capture a frame. Understand a shot. Build your story.')}</p>
       <div className="actions">
-        <button className="btn primary" onClick={onNew}>{t("New Project")}</button>
-        <button className="btn" onClick={onOpen}>{t("Open Project…")}</button>
-        <button className="btn" onClick={() => setHelpOpen(true)}>{t("? Quick start")}</button>
+        <button className="btn primary" onClick={openLibrary}>
+          {t('New Project')}
+        </button>
+        <button className="btn" onClick={openLibrary}>
+          {t('Open Project…')}
+        </button>
+        <button className="btn" onClick={() => setHelpOpen(true)}>
+          {t('? Quick start')}
+        </button>
       </div>
       <Credits />
     </div>
@@ -97,16 +83,32 @@ function Welcome(): JSX.Element {
 }
 
 function useAutosave(): void {
+  const settings = useSettings((s) => s.value)
   const hasDoc = useStore((s) => s.doc !== null)
   const folder = useStore((s) => s.projectFolder)
   useEffect(() => {
     if (!hasDoc || !folder) return
+    if (!settings?.autosave) return
+    let saving = false
     const interval = setInterval(() => {
+      const state = useStore.getState()
       const json = currentProjectJson()
-      if (json) void window.sbr.saveBackup(folder, json)
-    }, 60_000)
+      if (!state.dirty || saving || !json || state.projectFolder !== folder) return
+      saving = true
+      void window.sbr
+        .saveProject(folder, json)
+        .then(() => {
+          if (useStore.getState().projectFolder === folder) state.markSaved(json)
+        })
+        .catch((error) =>
+          state.toast(t('Operation failed: {error}', { error: String(error) }), 'error')
+        )
+        .finally(() => {
+          saving = false
+        })
+    }, settings.autosaveSeconds * 1000)
     return () => clearInterval(interval)
-  }, [hasDoc, folder])
+  }, [hasDoc, folder, settings?.autosave, settings?.autosaveSeconds])
 }
 
 interface Transport {
@@ -118,10 +120,18 @@ interface Transport {
 }
 
 function useKeyboard(): void {
-  useEffect(() => window.sbr.onHistory((action) => {
-    if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) document.execCommand(action)
-    else useStore.getState()[action]()
-  }), [])
+  useEffect(
+    () =>
+      window.sbr.onHistory((action) => {
+        if (
+          document.activeElement instanceof HTMLInputElement ||
+          document.activeElement instanceof HTMLTextAreaElement
+        )
+          document.execCommand(action)
+        else useStore.getState()[action]()
+      }),
+    []
+  )
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const s = useStore.getState()
@@ -136,7 +146,19 @@ function useKeyboard(): void {
       if (meta && e.key === 's') {
         e.preventDefault()
         const json = currentProjectJson()
-        if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json).then(() => { s.markSaved(json); s.toast(t('Project saved.'), 'success') }).catch((error) => s.toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error'))
+        if (json && s.projectFolder)
+          void window.sbr
+            .saveProject(s.projectFolder, json)
+            .then(() => {
+              s.markSaved(json)
+              s.toast(t('Project saved.'), 'success')
+            })
+            .catch((error) =>
+              s.toast(
+                t('Could not save project: {error}', { error: (error as Error).message }),
+                'error'
+              )
+            )
         return
       }
       if (document.querySelector('[role=dialog], .floating-menu')) return
@@ -202,7 +224,8 @@ function useKeyboard(): void {
         }
         if (s.selectedFrameId) {
           const frame = s.frame(s.selectedFrameId)
-          if (frame?.prompt?.text && !window.confirm(t("This frame has a prompt. Remove it?"))) return
+          if (frame?.prompt?.text && !window.confirm(t('This frame has a prompt. Remove it?')))
+            return
           s.removeFrame(s.selectedFrameId)
           const json = currentProjectJson()
           if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json)
@@ -215,9 +238,19 @@ function useKeyboard(): void {
 }
 
 export function App(): JSX.Element {
+  const [panel, setPanel] = useState<'library' | 'settings' | null>(null)
+  useEffect(() => {
+    void useSettings.getState().load()
+  }, [])
   const language = useLanguage((s) => s.preference)
-  const [binVisible, setBinVisible] = usePreference('framebook.ui.bin', 'yes', ['yes', 'no'] as const)
-  const [inspectorVisible, setInspectorVisible] = usePreference('framebook.ui.inspector', 'yes', ['yes', 'no'] as const)
+  const [binVisible, setBinVisible] = usePreference('framebook.ui.bin', 'yes', [
+    'yes',
+    'no'
+  ] as const)
+  const [inspectorVisible, setInspectorVisible] = usePreference('framebook.ui.inspector', 'yes', [
+    'yes',
+    'no'
+  ] as const)
   const doc = useStore((s) => s.doc)
   const workspace = useStore((s) => s.workspace)
   const canUndo = useStore((s) => s.history.length > 0)
@@ -225,9 +258,20 @@ export function App(): JSX.Element {
   const dirty = useStore((s) => s.dirty)
   const folder = useStore((s) => s.projectFolder)
   const markSaved = useStore((s) => s.markSaved)
+  const visited = useRef<{ project: string; views: Set<string> }>({ project: '', views: new Set() })
+  if (visited.current.project !== doc?.id)
+    visited.current = { project: doc?.id ?? '', views: new Set() }
+  visited.current.views.add(workspace)
 
   useAutosave()
   useKeyboard()
+  useEffect(() => {
+    if (workspace !== 'capture')
+      document.querySelectorAll('video').forEach((video) => video.pause())
+    document.querySelectorAll<HTMLElement>('.workspace-page').forEach((page) => {
+      page.inert = page.classList.contains('inactive')
+    })
+  }, [workspace, doc?.id])
 
   const onSave = useCallback(async () => {
     const json = currentProjectJson()
@@ -237,19 +281,30 @@ export function App(): JSX.Element {
         markSaved(json)
         useStore.getState().toast(t('Project saved.'), 'success')
       } catch (error) {
-        useStore.getState().toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error')
+        useStore
+          .getState()
+          .toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error')
       }
     }
   }, [folder, markSaved])
 
+  const overlays = (
+    <>
+      {panel === 'library' && <ProjectLibrary onClose={() => setPanel(null)} />}
+      {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
+    </>
+  )
   if (!doc) {
     return (
       <div className="app welcome-app" data-language={language}>
         <div className="titlebar">
           <span className="app-name">帧册 / FRAMEBOOK</span>
-          <div className="spacer" /><LanguageSelect />
+          <div className="spacer" />
+          <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
+          <LanguageSelect />
         </div>
-        <Welcome />
+        <Welcome openLibrary={() => setPanel('library')} />
+        {overlays}
         <Toasts />
         <HelpOverlay />
       </div>
@@ -260,28 +315,189 @@ export function App(): JSX.Element {
     <div className="app" data-language={language}>
       <div className="titlebar">
         <span className="app-name">帧册 / FRAMEBOOK</span>
-        <div className="project-identity"><span className="project-name" title={doc.name}>{doc.name}</span><span className={`save-state ${dirty ? 'dirty' : ''}`} role="status">{t(dirty ? 'Unsaved changes' : 'Saved')}</span></div>
+        <div className="project-identity">
+          <ProjectName />
+          <span className={`save-state ${dirty ? 'dirty' : ''}`} role="status">
+            {t(dirty ? 'Unsaved changes' : 'Saved')}
+          </span>
+        </div>
         <div className="spacer" />
-        <button className="btn small" disabled={!canUndo} onClick={() => useStore.getState().undo()}>{t('Undo')}</button>
-        <button className="btn small" disabled={!canRedo} onClick={() => useStore.getState().redo()}>{t('Redo')}</button>
+        <TopAction
+          icon="undo"
+          label="Undo"
+          disabled={!canUndo}
+          onClick={() => useStore.getState().undo()}
+        />
+        <TopAction
+          icon="redo"
+          label="Redo"
+          disabled={!canRedo}
+          onClick={() => useStore.getState().redo()}
+        />
+        <TopAction icon="library" label="Project library" onClick={() => setPanel('library')} />
+        <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
         <LanguageSelect />
-        <button className="btn small" onClick={onSave}>{t("Save")}</button>
-        <button className="btn small" onClick={() => useStore.getState().setHelpOpen(true)}>{t("? Help")}</button>
+        <TopAction icon="save" label="Save" onClick={onSave} />
+        <TopAction icon="help" label="Help" onClick={() => useStore.getState().setHelpOpen(true)} />
       </div>
-      <nav className="workspace-nav">{(['capture', 'gallery', 'storyboard'] as const).map((value, index) => <button key={value} className={workspace === value ? 'active' : ''} onClick={() => useStore.getState().setWorkspace(value)}><span>0{index + 1}</span>{t({capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor'}[value])}</button>)}<span className="nav-note">FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}</span></nav>
-      {workspace === 'capture' ? <div className={`capture-layout ${binVisible === 'no' ? 'bin-collapsed' : ''} ${inspectorVisible === 'no' ? 'inspector-collapsed' : ''}`}><div className="capture-bar"><button className="text-button" aria-expanded={binVisible === 'yes'} onClick={() => setBinVisible(binVisible === 'yes' ? 'no' : 'yes')}>{t('Media bin')} {binVisible === 'yes' ? '−' : '＋'}</button><div className="spacer"/><button className="text-button" aria-expanded={inspectorVisible === 'yes'} onClick={() => setInspectorVisible(inspectorVisible === 'yes' ? 'no' : 'yes')}>{t('Frame settings')} {inspectorVisible === 'yes' ? '−' : '＋'}</button></div><div className="workspace"><MediaBin /><Viewer /><Inspector /><Board /></div></div> : workspace === 'gallery' ? <Gallery /> : <StoryboardEditor />}
+      <nav className="workspace-nav">
+        {(['capture', 'gallery', 'storyboard'] as const).map((value, index) => (
+          <button
+            key={value}
+            className={workspace === value ? 'active' : ''}
+            onClick={() => useStore.getState().setWorkspace(value)}
+          >
+            <span>0{index + 1}</span>
+            {t(
+              { capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor' }[
+                value
+              ]
+            )}
+          </button>
+        ))}
+        <span className="nav-note">
+          FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}
+        </span>
+      </nav>
+      <div className="workspace-stack" key={doc.id}>
+        <div
+          className={`workspace-page ${workspace === 'capture' ? 'active' : 'inactive'}`}
+          aria-hidden={workspace !== 'capture'}
+        >
+          <div
+            className={`capture-layout ${binVisible === 'no' ? 'bin-collapsed' : ''} ${inspectorVisible === 'no' ? 'inspector-collapsed' : ''}`}
+          >
+            <div className="capture-bar">
+              <button
+                className="text-button"
+                aria-expanded={binVisible === 'yes'}
+                onClick={() => setBinVisible(binVisible === 'yes' ? 'no' : 'yes')}
+              >
+                {t('Media bin')} {binVisible === 'yes' ? '−' : '＋'}
+              </button>
+              <div className="spacer" />
+              <button
+                className="text-button"
+                aria-expanded={inspectorVisible === 'yes'}
+                onClick={() => setInspectorVisible(inspectorVisible === 'yes' ? 'no' : 'yes')}
+              >
+                {t('Frame settings')} {inspectorVisible === 'yes' ? '−' : '＋'}
+              </button>
+            </div>
+            <div className="workspace">
+              <MediaBin />
+              <Viewer />
+              <Inspector />
+              <Board />
+            </div>
+          </div>
+        </div>
+        <div
+          className={`workspace-page ${workspace === 'gallery' ? 'active' : 'inactive'}`}
+          aria-hidden={workspace !== 'gallery'}
+        >
+          {visited.current.views.has('gallery') && <Gallery />}
+        </div>
+        <div
+          className={`workspace-page ${workspace === 'storyboard' ? 'active' : 'inactive'}`}
+          aria-hidden={workspace !== 'storyboard'}
+        >
+          {visited.current.views.has('storyboard') && <StoryboardEditor />}
+        </div>
+        <div key={workspace} className="workspace-wipe" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
+      </div>
       <Toasts />
       <HelpOverlay />
       <Present />
+      {overlays}
     </div>
   )
 }
 
 function LanguageSelect(): JSX.Element {
   const { preference, change } = useLanguage()
-  return <select className="language-select" aria-label={t('Language')} value={preference} onChange={(e) => change(e.target.value as typeof preference)}>
-    <option value="system">{t('Follow system')}</option>
-    <option value="zh-CN">简体中文</option>
-    <option value="en">English</option>
-  </select>
+  return (
+    <label className="top-action language-action">
+      <ActionLabel icon="language" label="Language" />
+      <select
+        className="language-select"
+        aria-label={t('Language')}
+        value={preference}
+        onChange={(e) => change(e.target.value as typeof preference)}
+      >
+        <option value="system">{t('Follow system')}</option>
+        <option value="zh-CN">简体中文</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+  )
+}
+
+function ProjectName(): JSX.Element {
+  const name = useStore((state) => state.doc?.name ?? '')
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const [busy, setBusy] = useState(false)
+  const finish = async (next: string): Promise<void> => {
+    if (busy) return
+    setEditing(false)
+    if (!next.trim() || next.trim() === name) return
+    const state = useStore.getState()
+    const json = currentProjectJson()
+    if (!state.projectFolder || !json) return
+    setBusy(true)
+    try {
+      const folder = await window.sbr.renameProject(state.projectFolder, next.trim(), json)
+      state.mutate('rename project', (doc) => {
+        doc.name = next.trim()
+      })
+      useStore.setState({ projectFolder: folder, stills: {} })
+      const saved = currentProjectJson()
+      if (saved) state.markSaved(saved)
+      state.toast(t('Project renamed.'), 'success')
+    } catch (error) {
+      state.toast(t('Operation failed: {error}', { error: String(error) }), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return editing ? (
+    <input
+      className="project-name-input"
+      aria-label={t('Project name')}
+      autoFocus
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => void finish(value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          event.currentTarget.blur()
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          setEditing(false)
+        }
+      }}
+    />
+  ) : (
+    <button
+      className="project-name project-name-edit"
+      disabled={busy}
+      title={t('Click to rename project')}
+      onClick={() => {
+        setValue(name)
+        setEditing(true)
+      }}
+    >
+      <span>{name}</span>
+      <span className="name-edit-mark" aria-hidden="true">
+        ↗
+      </span>
+    </button>
+  )
 }

@@ -23,6 +23,8 @@ test('local PNG JPG HEIF imports, field conversion, templates and undo', async (
     const page = await app.firstWindow()
     await page.locator('.language-select').selectOption('en')
     await page.getByRole('button', { name: 'New Project', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('Smoke')
+    await page.getByRole('dialog').getByRole('button', { name: 'New Project', exact: true }).click()
     await app.evaluate(
       ({ dialog }, filePaths) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths })

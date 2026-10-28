@@ -62,7 +62,9 @@ test('boots to the welcome screen', async () => {
 })
 
 test('creates a project and imports the test clip', async () => {
-  await page.getByRole('button', { name: 'New Project' }).click()
+  await page.getByRole('button', { name: 'New Project', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('Smoke')
+  await page.getByRole('dialog').getByRole('button', { name: 'New Project', exact: true }).click()
   await expect(page.locator('.workspace')).toBeVisible()
 
   const mediaCount = await page.evaluate(async (clip) => {

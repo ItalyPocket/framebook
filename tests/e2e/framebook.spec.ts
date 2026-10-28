@@ -17,6 +17,8 @@ test('gallery, editable storyboard table, image cells, save and exports', async 
     page.on('pageerror', (error) => errors.push(error.message))
     await page.locator('.language-select').selectOption('zh-CN')
     await page.getByRole('button', { name: '新建项目', exact: true }).click()
+    await page.getByRole('textbox', { name: '项目名称', exact: true }).fill('Smoke')
+    await page.getByRole('dialog').getByRole('button', { name: '新建项目', exact: true }).click()
     const batches = await page.evaluate(async (clip) => {
       const s = window.__sbr.store.getState()
       const media = s.addMedia(await window.sbr.importMedia(s.projectFolder, clip))
@@ -65,7 +67,7 @@ test('gallery, editable storyboard table, image cells, save and exports', async 
       return { csv, pdf, imageCount: images.length, version: current.doc.version, cells: savedShot.cells }
     })
     expect(result.imageCount).toBe(3)
-    expect(result.version).toBe(4)
+    expect(result.version).toBe(5)
     expect(result.cells.description).toBe('主角走入画面，镜头缓慢推进。')
     expect(result.csv.ok, result.csv.error).toBe(true)
     expect(result.pdf.ok, result.pdf.error).toBe(true)

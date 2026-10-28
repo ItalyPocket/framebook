@@ -6,8 +6,9 @@ import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../sha
  * the renderer talks through the typed IPC surface in src/preload.
  */
 
+import { mkdirSync } from 'fs'
 import { app, BrowserWindow, dialog, ipcMain, shell, Menu } from 'electron'
-import { mkdir, readFile, writeFile, copyFile, stat, rename } from 'fs/promises'
+import { mkdir, readFile, writeFile, copyFile, stat } from 'fs/promises'
 import { join, basename, extname, resolve, sep } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -24,7 +25,14 @@ import {
 import { exportPdf } from './pdf'
 import { exportStoryboard, exportNumbered } from './storyboard'
 import type { StoryboardExportInput } from '../shared/exports'
+import { setupPreviews } from './preview'
+import { getSettings, saveProject, registerProject, setupWorkspace } from './workspace'
 import { version as APP_VERSION } from '../../package.json'
+
+if (process.env.SBR_SMOKE_DIR) {
+  const data = join(process.env.SBR_SMOKE_DIR, '.app-data')
+  mkdirSync(data, { recursive: true }); app.setPath('userData', data)
+}
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
 
@@ -66,6 +74,8 @@ app.whenReady().then(() => {
     credits: 'Created by Sam Wasserman — wassermanproductions.com · wasserman.ai',
     copyright: 'Apache-2.0 — keep this credit when using or forking.'
   })
+  setupWorkspace()
+  setupPreviews()
   createWindow()
   void startControlServer(() => mainWindow)
   app.on('activate', () => {
@@ -79,6 +89,7 @@ app.on('window-all-closed', () => {
 
 /* ------------------------------- dialogs -------------------------------- */
 
+const externalSources = new Map<string, Set<string>>()
 const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'tif', 'tiff', 'bmp', 'gif']
 const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm']
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac']
@@ -146,20 +157,7 @@ ipcMain.handle('dialog:importImages', async () => {
 
 /* ---------------------------- project I/O ------------------------------- */
 
-ipcMain.handle('project:save', async (_e, folder: string, json: string) => {
-  await mkdir(folder, { recursive: true })
-  const target = join(folder, 'project.json')
-  const previous = await readFile(target, 'utf-8').catch(() => null)
-  if (previous) {
-    try {
-      if (JSON.parse(previous).version < 4) await writeFile(join(folder, 'project.pre-framebook.json'), previous, { flag: 'wx' }).catch(() => {})
-    } catch {}
-  }
-  const temporary = join(folder, `project.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
-  await writeFile(temporary, json, 'utf-8')
-  await rename(temporary, target)
-  return true
-})
+ipcMain.handle('project:save', (_e, folder: string, json: string) => saveProject(folder, json))
 
 ipcMain.handle('project:saveBackup', async (_e, folder: string, json: string) => {
   await mkdir(join(folder, '.autosave'), { recursive: true })
@@ -168,6 +166,7 @@ ipcMain.handle('project:saveBackup', async (_e, folder: string, json: string) =>
 })
 
 ipcMain.handle('project:load', async (_e, folder: string) => {
+  await registerProject(folder)
   const main = join(folder, 'project.json')
   const backup = join(folder, '.autosave', 'project.autosave.json')
   const out: { json: string | null; backupJson: string | null; backupNewer: boolean; folder: string } = {
@@ -204,8 +203,10 @@ ipcMain.handle('project:importMedia', async (_e, folder: string, sourcePath: str
   const ext = extname(sourcePath).toLowerCase()
   const kind = VIDEO_EXTS.includes(ext.replace('.', '')) ? 'video' : 'image'
   const name = `${Date.now().toString(36)}-${basename(sourcePath)}`
-  const dest = join(mediaDir, name)
-  await copyFile(sourcePath, dest)
+  const copied = (await getSettings()).copyMedia
+  const dest = copied ? join(mediaDir, name) : sourcePath
+  if (copied) await copyFile(sourcePath, dest)
+  else { const paths = externalSources.get(folder) ?? new Set<string>(); paths.add(sourcePath); externalSources.set(folder, paths) }
   let workingFile: string | undefined
   let width = 0
   let height = 0
@@ -230,7 +231,8 @@ ipcMain.handle('project:importMedia', async (_e, folder: string, sourcePath: str
   const info = await probeMedia(workingFile ? join(folder, workingFile) : dest).catch(() => ({ durationS: undefined, fps: undefined }))
   return {
     kind,
-    sourceFile: join('media', name),
+    sourceFile: copied ? join('media', name) : '',
+    externalPath: copied ? undefined : sourcePath,
     workingFile,
     name: basename(sourcePath),
     width,
@@ -268,7 +270,7 @@ ipcMain.handle('project:importAudio', async (_e, folder: string, sourcePath: str
 })
 
 ipcMain.handle('file:readProjectFile', async (_e, folder: string, relativePath: string) => {
-  const full = guardPath(folder, relativePath)
+  const full = await resolveReadablePath(folder, relativePath)
   const data = await readFile(full)
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
 })
@@ -375,3 +377,12 @@ ipcMain.handle('export:numbered', async (_e, input: ExportInput, format: 'png' |
   if (result.ok) shell.showItemInFolder(result.path)
   return result
 })
+
+async function resolveReadablePath(folder: string, path: string): Promise<string> {
+  try { return guardPath(folder, path) } catch {
+    if (externalSources.get(folder)?.has(path)) return path
+    const project = JSON.parse(await readFile(join(folder, 'project.json'), 'utf8'))
+    if (project.media?.some((media: { externalPath?: string }) => media.externalPath === path)) return path
+    throw new Error('File is not registered in this project')
+  }
+}

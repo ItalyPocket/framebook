@@ -275,6 +275,8 @@ test.beforeAll(async () => {
   await page.setViewportSize({ width: 1600, height: 1000 }).catch(() => {})
   await page.waitForLoadState('domcontentloaded')
   await page.getByRole('button', { name: 'New Project' }).click()
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('Smoke')
+  await page.getByRole('dialog').getByRole('button', { name: 'New Project', exact: true }).click()
   await page.waitForTimeout(600)
 })
 

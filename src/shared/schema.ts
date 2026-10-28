@@ -20,6 +20,7 @@ export function createProject(name: string): Project {
     id: newId('proj'),
     name,
     media: [],
+    mediaFolders: [],
     frames: [],
     storyboard: { title: name, description: '', columns: defaultStoryColumns(), shots: [] },
     settings: { gallerySort: 'time', defaultProfileId: DEFAULT_PROFILE_ID, audioFile: null }
@@ -34,6 +35,8 @@ export function createMediaItem(
     kind: fields.kind,
     sourceFile: fields.sourceFile,
     workingFile: fields.workingFile,
+    externalPath: fields.externalPath,
+    folderId: fields.folderId,
     name: fields.name,
     durationS: fields.durationS,
     width: fields.width,
@@ -109,6 +112,7 @@ export function parseProject(json: string): ParseOutcome {
     id: typeof o.id === 'string' ? o.id : newId('proj'),
     name: typeof o.name === 'string' ? o.name : 'Untitled',
     media,
+    mediaFolders: Array.isArray(o.mediaFolders) ? o.mediaFolders.filter((entry): entry is { id: string; name: string; parentId: string | null } => !!entry && typeof entry === 'object' && typeof entry.id === 'string' && typeof entry.name === 'string' && (entry.parentId === null || typeof entry.parentId === 'string')) : [],
     frames,
     storyboard: sanitizeStoryboard(o.storyboard, frames, issues, typeof o.name === 'string' ? o.name : 'Untitled'),
     settings: {
@@ -139,6 +143,8 @@ function sanitizeMedia(m: unknown, issues: ParseIssue[]): MediaItem | null {
     kind,
     sourceFile: o.sourceFile,
     workingFile: typeof o.workingFile === 'string' ? o.workingFile : undefined,
+    externalPath: typeof o.externalPath === 'string' ? o.externalPath : undefined,
+    folderId: typeof o.folderId === 'string' ? o.folderId : undefined,
     name: typeof o.name === 'string' ? o.name : o.sourceFile,
     durationS: typeof o.durationS === 'number' ? o.durationS : undefined,
     width: typeof o.width === 'number' ? o.width : 0,
@@ -299,7 +305,7 @@ function sanitizeStoryboard(value: unknown, frames: Frame[], issues: ParseIssue[
 
 export function defaultStoryColumns(): StoryColumn[] {
   return [
-    { id: 'shotNo', name: '镜号', type: 'number', width: 80, visible: true, options: [] },
+    { id: 'shotNo', name: '镜号', type: 'number', width: 56, visible: true, options: [] },
     { id: 'image', name: '画面', type: 'image', width: 220, visible: true, options: [] },
     { id: 'description', name: '内容', type: 'text', width: 260, visible: true, options: [] },
     { id: 'sound', name: '声音', type: 'text', width: 220, visible: true, options: [] },
@@ -319,7 +325,7 @@ function sanitizeStoryColumn(value: unknown): StoryColumn | null {
   const item = value as Record<string, unknown>
   const types: StoryColumnType[] = ['text', 'number', 'single', 'multi', 'date', 'checkbox', 'image']
   if (typeof item.id !== 'string' || typeof item.name !== 'string' || !types.includes(item.type as StoryColumnType)) return null
-  return { id: item.id, name: item.name, type: item.type as StoryColumnType, width: typeof item.width === 'number' ? Math.max(60, item.width) : 160, visible: item.visible !== false, options: Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === 'string') : [] }
+  return { id: item.id, name: item.name, type: item.type as StoryColumnType, width: typeof item.width === 'number' ? Math.max(40, item.width) : 160, visible: item.visible !== false, options: Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === 'string') : [] }
 }
 
 function sanitizeCell(value: unknown, column: StoryColumn, issues: ParseIssue[]): StoryCell {
@@ -335,4 +341,24 @@ function sanitizeCell(value: unknown, column: StoryColumn, issues: ParseIssue[])
   if (column.type === 'number') return typeof value === 'number' || typeof value === 'string' ? value : ''
   if (column.type === 'multi') return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
   return typeof value === 'string' ? value : ''
+}
+
+export function storyColumnPresets(): StoryColumn[] {
+  return [...defaultStoryColumns(),
+    { id: 'reference', name: '参考画面', type: 'image' as const, width: 220, visible: true, options: [] },
+    { id: 'notes', name: '备注', type: 'text' as const, width: 200, visible: true, options: [] }
+  ].map((column) => ({ ...column, visible: true }))
+}
+
+export function minimumColumnWidth(column: StoryColumn): number {
+  if (column.id === 'shotNo') return 40
+  return { image: 160, text: 120, number: 56, checkbox: 48, single: 80, multi: 80, date: 112 }[column.type]
+}
+
+export function formatStoryDuration(seconds: number): string {
+  const hundredths = Math.round(seconds * 100)
+  const minutes = Math.floor(hundredths / 6000)
+  const remainder = (hundredths % 6000) / 100
+  const value = remainder.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+  return `${minutes}:${remainder < 10 ? '0' : ''}${value}`
 }

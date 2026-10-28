@@ -13,13 +13,14 @@ export function useMediaUrl(media: MediaItem | null): string | null {
       setUrl(null)
       return
     }
-    void projectFileUrl(folder, media.workingFile ?? media.sourceFile, mimeForMedia(media.workingFile ?? media.name)).then((u) => {
+    setUrl(null)
+    void projectFileUrl(folder, media.workingFile ?? media.externalPath ?? media.sourceFile, mimeForMedia(media.workingFile ?? media.name)).then((u) => {
       if (alive) setUrl(u)
-    })
+    }).catch(() => { if (alive) setUrl(null) })
     return () => {
       alive = false
     }
-  }, [media?.id, folder])
+  }, [media?.id, media?.externalPath, media?.workingFile, folder])
   return url
 }
 

@@ -14,6 +14,8 @@ export interface MediaItem {
   /** Path relative to the project folder, e.g. "media/abc-clip.mp4". */
   sourceFile: string
   workingFile?: string
+  externalPath?: string
+  folderId?: string
   /** Original filename, for display. */
   name: string
   durationS?: number
@@ -103,12 +105,13 @@ export interface Project {
   id: string
   name: string
   media: MediaItem[]
+  mediaFolders: { id: string; name: string; parentId: string | null }[]
   frames: Frame[]
   storyboard: Storyboard
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 4
+export const PROJECT_VERSION = 5
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2

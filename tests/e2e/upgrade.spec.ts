@@ -55,6 +55,8 @@ test.afterAll(async () => {
 test('boots and creates a project', async () => {
   await expect(page.locator('.welcome-title')).toBeVisible()
   await page.getByRole('button', { name: 'New Project' }).click()
+  await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('Smoke')
+  await page.getByRole('dialog').getByRole('button', { name: 'New Project', exact: true }).click()
   await expect(page.locator('.workspace')).toBeVisible()
 })
 
@@ -82,7 +84,7 @@ test('migrates a v1 project.json to v2 without throwing', async () => {
     }
   })
   expect(migrated.ok).toBe(true)
-  expect(migrated.version).toBe(4)
+  expect(migrated.version).toBe(5)
   expect(migrated.durationS).toBe(2)
   expect(migrated.hasShot).toBe(true)
   expect(migrated.annotations).toBe(0)

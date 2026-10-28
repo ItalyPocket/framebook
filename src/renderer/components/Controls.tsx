@@ -48,15 +48,22 @@ export function Menu({
     setPosition({
       left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
       top:
-        rect.bottom + height + 8 <= window.innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - height - 6)
+        rect.bottom + height + 8 <= window.innerHeight
+          ? rect.bottom + 6
+          : Math.max(8, rect.top - height - 6)
     })
-    const focusable = panel.current.querySelector<HTMLElement>('input, button:not(:disabled), select')
+    const focusable = panel.current.querySelector<HTMLElement>(
+      'input, button:not(:disabled), select'
+    )
     focusable?.focus({ preventScroll: true })
   }, [open])
   useEffect(() => {
     if (!open) return
     const outside = (event: PointerEvent): void => {
-      if (!panel.current?.contains(event.target as Node) && !anchor.current?.contains(event.target as Node))
+      if (
+        !panel.current?.contains(event.target as Node) &&
+        !anchor.current?.contains(event.target as Node)
+      )
         setOpen(false)
     }
     const close = (event: KeyboardEvent): void => {
@@ -70,7 +77,9 @@ export function Menu({
         (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
         panel.current?.contains(document.activeElement)
       ) {
-        const items = [...panel.current.querySelectorAll<HTMLElement>('button:not(:disabled), input, select')]
+        const items = [
+          ...panel.current.querySelectorAll<HTMLElement>('button:not(:disabled), input, select')
+        ]
         const index = items.indexOf(document.activeElement as HTMLElement)
         event.preventDefault()
         items[(index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus()
@@ -139,7 +148,13 @@ export function MenuItem({
   danger?: boolean
 }): JSX.Element {
   return (
-    <button type="button" data-close className={danger ? 'danger' : ''} disabled={disabled} onClick={onClick}>
+    <button
+      type="button"
+      data-close
+      className={danger ? 'danger' : ''}
+      disabled={disabled}
+      onClick={onClick}
+    >
       {children}
     </button>
   )
@@ -166,6 +181,12 @@ export function Dialog({
     if (root) root.inert = true
     ref.current?.querySelector<HTMLElement>('input, textarea, select, button')?.focus()
     const key = (event: KeyboardEvent): void => {
+      if (
+        Array.from(document.querySelectorAll('[role=dialog]'))
+          .filter((element) => !element.closest('.dialog-exit'))
+          .at(-1) !== ref.current
+      )
+        return
       if (event.key === 'Escape') {
         event.preventDefault()
         event.stopPropagation()
@@ -190,9 +211,25 @@ export function Dialog({
     }
     document.addEventListener('keydown', key, true)
     return () => {
-      if (root) root.inert = false
+      if (root)
+        root.inert = !!Array.from(document.querySelectorAll('[role=dialog]')).find(
+          (element) => element !== ref.current && !element.closest('.dialog-exit')
+        )
       document.removeEventListener('keydown', key, true)
-      previous?.focus()
+      previous?.focus({ preventScroll: true })
+    }
+  }, [])
+  useLayoutEffect(() => {
+    const backdrop = ref.current?.closest('.modal-backdrop')
+    return () => {
+      if (!backdrop || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      const ghost = backdrop.cloneNode(true) as HTMLElement
+      ghost.classList.add('dialog-exit')
+      ghost.setAttribute('aria-hidden', 'true')
+      ghost.inert = true
+      ghost.querySelectorAll('[id]').forEach((element) => element.removeAttribute('id'))
+      document.body.append(ghost)
+      setTimeout(() => ghost.remove(), 160)
     }
   }, [])
   return createPortal(

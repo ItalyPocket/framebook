@@ -1,7 +1,19 @@
 import { aspectRatio } from '@shared/types'
 import { t } from '@shared/i18n'
 import { create } from 'zustand'
-import type { Project, MediaItem, Frame, Crop, CropAspect, ShotMeta, Annotation, StoryShot, StoryColumn, StoryCell, StoryImage } from '@shared/types'
+import type {
+  Project,
+  MediaItem,
+  Frame,
+  Crop,
+  CropAspect,
+  ShotMeta,
+  Annotation,
+  StoryShot,
+  StoryColumn,
+  StoryCell,
+  StoryImage
+} from '@shared/types'
 import {
   createProject,
   createStoryShot,
@@ -193,7 +205,12 @@ export const useStore = create<SbrState>((set, get) => ({
   undo() {
     const { history, doc, future } = get()
     if (!doc || !history.length) return
-    set({ doc: history[history.length - 1]!, history: history.slice(0, -1), future: [doc, ...future], dirty: true })
+    set({
+      doc: history[history.length - 1]!,
+      history: history.slice(0, -1),
+      future: [doc, ...future],
+      dirty: true
+    })
     lastMutation = { label: '', time: 0 }
   },
   redo() {
@@ -203,13 +220,21 @@ export const useStore = create<SbrState>((set, get) => ({
     lastMutation = { label: '', time: 0 }
   },
   sortGallery() {
-    get().mutate('sort gallery', (doc) => { doc.settings.gallerySort = 'time'; sortFrames(doc) })
+    get().mutate('sort gallery', (doc) => {
+      doc.settings.gallerySort = 'time'
+      sortFrames(doc)
+    })
   },
   addShots(frameIds, grouped) {
     let id = ''
     get().mutate('add shots', (doc) => {
-      const frames = [...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))
-      const shots = grouped || !frames.length ? [createStoryShot(frames)] : frames.map((frame) => createStoryShot([frame]))
+      const frames = [...doc.frames]
+        .sort((a, b) => a.order - b.order)
+        .filter((frame) => frameIds.includes(frame.id))
+      const shots =
+        grouped || !frames.length
+          ? [createStoryShot(frames)]
+          : frames.map((frame) => createStoryShot([frame]))
       doc.storyboard.shots.push(...shots)
       id = shots[0]?.id ?? ''
     })
@@ -222,7 +247,9 @@ export const useStore = create<SbrState>((set, get) => ({
     })
   },
   removeShot(id) {
-    get().mutate('remove shot', (doc) => { doc.storyboard.shots = doc.storyboard.shots.filter((shot) => shot.id !== id) })
+    get().mutate('remove shot', (doc) => {
+      doc.storyboard.shots = doc.storyboard.shots.filter((shot) => shot.id !== id)
+    })
   },
   duplicateShot(id) {
     get().mutate('duplicate shot', (doc) => {
@@ -232,7 +259,9 @@ export const useStore = create<SbrState>((set, get) => ({
       copy.id = newId('shot')
       for (const column of doc.storyboard.columns.filter((item) => item.type === 'image')) {
         const images = copy.cells[column.id] as StoryImage[] | undefined
-        images?.forEach((image) => { image.frame.id = newId('still') })
+        images?.forEach((image) => {
+          image.frame.id = newId('still')
+        })
       }
       doc.storyboard.shots.splice(index + 1, 0, copy)
     })
@@ -242,14 +271,28 @@ export const useStore = create<SbrState>((set, get) => ({
       const index = doc.storyboard.shots.findIndex((shot) => shot.id === id)
       if (index < 0) return
       const [shot] = doc.storyboard.shots.splice(index, 1)
-      doc.storyboard.shots.splice(Math.max(0, Math.min(toIndex, doc.storyboard.shots.length)), 0, shot!)
+      doc.storyboard.shots.splice(
+        Math.max(0, Math.min(toIndex, doc.storyboard.shots.length)),
+        0,
+        shot!
+      )
     })
   },
   addShotImages(id, frameIds, columnId) {
     get().mutate('add shot images', (doc) => {
       const shot = doc.storyboard.shots.find((item) => item.id === id)
-      const imageColumn = doc.storyboard.columns.find((column) => column.type === 'image' && (!columnId || column.id === columnId))
-      if (shot && imageColumn) shot.cells[imageColumn.id] = [...(shot.cells[imageColumn.id] as StoryImage[] ?? []), ...createStoryShot([...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))).cells.image as StoryImage[]]
+      const imageColumn = doc.storyboard.columns.find(
+        (column) => column.type === 'image' && (!columnId || column.id === columnId)
+      )
+      if (shot && imageColumn)
+        shot.cells[imageColumn.id] = [
+          ...((shot.cells[imageColumn.id] as StoryImage[]) ?? []),
+          ...(createStoryShot(
+            [...doc.frames]
+              .sort((a, b) => a.order - b.order)
+              .filter((frame) => frameIds.includes(frame.id))
+          ).cells.image as StoryImage[])
+        ]
     })
   },
   updateStoryCell(id, columnId, value) {
@@ -260,8 +303,19 @@ export const useStore = create<SbrState>((set, get) => ({
   },
   addStoryColumn(column) {
     get().mutate('add story column', (doc) => {
+      if (doc.storyboard.columns.some((item) => item.id === column.id)) return
       doc.storyboard.columns.push(column)
-      for (const shot of doc.storyboard.shots) shot.cells[column.id] = column.type === 'image' ? [] : ''
+      for (const shot of doc.storyboard.shots)
+        shot.cells[column.id] =
+          column.id === 'startS'
+            ? (shot.startS ?? '')
+            : column.id === 'endS'
+              ? (shot.endS ?? '')
+              : column.type === 'image' || column.type === 'multi'
+                ? []
+                : column.type === 'checkbox'
+                  ? false
+                  : ''
     })
   },
   updateStoryColumn(id, patch) {
@@ -281,7 +335,11 @@ export const useStore = create<SbrState>((set, get) => ({
       const index = doc.storyboard.columns.findIndex((item) => item.id === id)
       if (index < 0) return
       const [column] = doc.storyboard.columns.splice(index, 1)
-      doc.storyboard.columns.splice(Math.max(0, Math.min(toIndex, doc.storyboard.columns.length)), 0, column!)
+      doc.storyboard.columns.splice(
+        Math.max(0, Math.min(toIndex, doc.storyboard.columns.length)),
+        0,
+        column!
+      )
     })
   },
   addStoryImage(id, columnId, frame, role = 'Reference') {
@@ -290,7 +348,10 @@ export const useStore = create<SbrState>((set, get) => ({
       const column = doc.storyboard.columns.find((item) => item.id === columnId)
       if (!shot || column?.type !== 'image') return
       const current = (shot.cells[columnId] as StoryImage[] | undefined) ?? []
-      shot.cells[columnId] = [...current, { frame: { ...structuredClone(frame), id: newId('still') }, role }]
+      shot.cells[columnId] = [
+        ...current,
+        { frame: { ...structuredClone(frame), id: newId('still') }, role }
+      ]
     })
   },
   markSaved(snapshot) {
@@ -317,8 +378,17 @@ export const useStore = create<SbrState>((set, get) => ({
     const next = structuredClone(doc) as Project
     fn(next)
     const now = Date.now()
-    const merge = _label.startsWith('field:') && lastMutation.label === _label && now - lastMutation.time < 700 && get().future.length === 0
-    set({ doc: next, dirty: true, history: merge ? get().history : [...get().history, doc].slice(-50), future: [] })
+    const merge =
+      _label.startsWith('field:') &&
+      lastMutation.label === _label &&
+      now - lastMutation.time < 700 &&
+      get().future.length === 0
+    set({
+      doc: next,
+      dirty: true,
+      history: merge ? get().history : [...get().history, doc].slice(-50),
+      future: []
+    })
     lastMutation = { label: _label, time: now }
   },
 
@@ -338,7 +408,9 @@ export const useStore = create<SbrState>((set, get) => ({
     const s = get()
     const m = s.doc?.media.find((x) => x.id === mediaId)
     if (!m || !s.projectFolder) return null
-    return absMediaPath(s.projectFolder, m.workingFile ?? m.sourceFile)
+    return m.workingFile
+      ? absMediaPath(s.projectFolder, m.workingFile)
+      : (m.externalPath ?? absMediaPath(s.projectFolder, m.sourceFile))
   },
 
   addMedia(item) {
@@ -351,7 +423,7 @@ export const useStore = create<SbrState>((set, get) => ({
   },
 
   addFrame(mediaId, timeS, label = '') {
-    const order = (get().doc?.frames.length ?? 0)
+    const order = get().doc?.frames.length ?? 0
     const frame = createFrame(mediaId, timeS, order, label)
     get().mutate('add frame', (doc) => {
       doc.frames.push(frame)
@@ -418,7 +490,7 @@ export const useStore = create<SbrState>((set, get) => ({
       const media = doc.media.find((item) => item.id === f.mediaId)
       const ratio = aspectRatio(aspect)
       if (ratio && media && media.width > 0 && media.height > 0) {
-        const w = Math.min(1, ratio * media.height / media.width)
+        const w = Math.min(1, (ratio * media.height) / media.width)
         const h = Math.min(1, media.width / (ratio * media.height))
         f.crop = { aspect, x: (1 - w) / 2, y: (1 - h) / 2, w, h }
       } else f.crop = fullCrop(aspect)
@@ -487,7 +559,12 @@ export const useStore = create<SbrState>((set, get) => ({
 
   toast(text, kind = 'info') {
     const id = `t${++toastSeq}`
-    set({ toasts: [...get().toasts.filter((item) => item.text !== text || item.kind !== kind), { id, text, kind }].slice(-3) })
+    set({
+      toasts: [
+        ...get().toasts.filter((item) => item.text !== text || item.kind !== kind),
+        { id, text, kind }
+      ].slice(-3)
+    })
     setTimeout(() => get().dismissToast(id), 5000)
   },
   dismissToast(id) {
@@ -506,5 +583,12 @@ export { DEFAULT_PROFILE_ID }
 
 function sortFrames(doc: Project): void {
   const positions = new Map(doc.media.map((media, index) => [media.id, index]))
-  doc.frames.sort((a, b) => (positions.get(a.mediaId) ?? 0) - (positions.get(b.mediaId) ?? 0) || a.timeS - b.timeS).forEach((frame, index) => { frame.order = index })
+  doc.frames
+    .sort(
+      (a, b) =>
+        (positions.get(a.mediaId) ?? 0) - (positions.get(b.mediaId) ?? 0) || a.timeS - b.timeS
+    )
+    .forEach((frame, index) => {
+      frame.order = index
+    })
 }

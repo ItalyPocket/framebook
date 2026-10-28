@@ -10,6 +10,8 @@ test('language switches immediately and persists without changing project text',
     await page.locator('.language-select').selectOption('zh-CN')
     await expect(page.getByRole('button', { name: '新建项目', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '新建项目', exact: true }).click()
+    await page.getByRole('textbox', { name: '项目名称', exact: true }).fill('Smoke')
+    await page.getByRole('dialog').getByRole('button', { name: '新建项目', exact: true }).click()
     await expect(page.getByRole('button', { name: '保存', exact: true })).toBeVisible()
     const menu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map((item) => item.label))
     expect(menu).toContain('编辑')

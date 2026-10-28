@@ -61,6 +61,8 @@ test('responsive workspaces, contextual controls, typed fields and independent i
     await page.locator('.welcome-title').hover()
     await page.screenshot({ path: join(outputs, 'welcome.png') })
     await page.getByRole('button', { name: '新建项目', exact: true }).click()
+    await page.getByRole('textbox', { name: '项目名称', exact: true }).fill('Smoke')
+    await page.getByRole('dialog').getByRole('button', { name: '新建项目', exact: true }).click()
     await expect(page.getByRole('status')).toHaveText('已保存')
     await page.evaluate(
       async ({ dir }) => {
