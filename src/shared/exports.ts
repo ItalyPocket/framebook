@@ -1,4 +1,4 @@
-import type { Crop, ShotMeta, Annotation, StoryShot } from './types'
+import type { Crop, ShotMeta, Annotation, StoryShot, StoryColumn } from './types'
 import type { Language } from './i18n'
 
 export interface ExportFrameInput {
@@ -21,7 +21,8 @@ export interface StoryboardExportInput {
   title: string
   description: string
   exportsRoot: string
-  shots: (StoryShot & { rendered: ExportFrameInput[] })[]
+  columns: StoryColumn[]
+  shots: (StoryShot & { rendered: ExportFrameInput[]; imageRoles: string[] })[]
   language: Language
   layout: 'table' | 'cards'
   orientation: 'portrait' | 'landscape'

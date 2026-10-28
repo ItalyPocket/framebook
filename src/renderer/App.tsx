@@ -54,7 +54,10 @@ function Welcome(): JSX.Element {
     const name = folder.split(/[/\\]/).pop()?.replace(/\.sbref$/, '') ?? t("Untitled")
     newProject(folder, name)
     const json = currentProjectJson()
-    if (json) await window.sbr.saveProject(folder, json)
+    if (json) {
+      try { await window.sbr.saveProject(folder, json); useStore.getState().markSaved(json); toast(t('Project saved.'), 'success') }
+      catch (error) { toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error') }
+    }
   }, [newProject])
 
   const onOpen = useCallback(async () => {
@@ -131,7 +134,7 @@ function useKeyboard(): void {
       if (meta && e.key === 's') {
         e.preventDefault()
         const json = currentProjectJson()
-        if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json).then(() => s.markSaved())
+        if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json).then(() => { s.markSaved(json); s.toast(t('Project saved.'), 'success') }).catch((error) => s.toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error'))
         return
       }
       if (e.key === '?') {
@@ -224,8 +227,13 @@ export function App(): JSX.Element {
   const onSave = useCallback(async () => {
     const json = currentProjectJson()
     if (json && folder) {
-      await window.sbr.saveProject(folder, json)
-      markSaved()
+      try {
+        await window.sbr.saveProject(folder, json)
+        markSaved(json)
+        useStore.getState().toast(t('Project saved.'), 'success')
+      } catch (error) {
+        useStore.getState().toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error')
+      }
     }
   }, [folder, markSaved])
 

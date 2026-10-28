@@ -1,7 +1,7 @@
 import { aspectRatio } from '@shared/types'
 import { t } from '@shared/i18n'
 import { create } from 'zustand'
-import type { Project, MediaItem, Frame, Crop, CropAspect, ShotMeta, Annotation, StoryShot } from '@shared/types'
+import type { Project, MediaItem, Frame, Crop, CropAspect, ShotMeta, Annotation, StoryShot, StoryColumn, StoryCell, StoryImage } from '@shared/types'
 import {
   createProject,
   createStoryShot,
@@ -49,6 +49,12 @@ interface SbrState {
   duplicateShot(id: string): void
   reorderShot(id: string, toIndex: number): void
   addShotImages(id: string, frameIds: string[]): void
+  updateStoryCell(id: string, columnId: string, value: StoryCell): void
+  addStoryColumn(column: StoryColumn): void
+  updateStoryColumn(id: string, patch: Partial<StoryColumn>): void
+  removeStoryColumn(id: string): void
+  reorderStoryColumn(id: string, toIndex: number): void
+  addStoryImage(id: string, columnId: string, frame: Frame, role?: string): void
   dirty: boolean
   toasts: Toast[]
   helpOpen: boolean
@@ -74,7 +80,7 @@ interface SbrState {
   /* lifecycle */
   newProject(folder: string, name: string): void
   loadFromJson(folder: string, json: string): boolean
-  markSaved(): void
+  markSaved(snapshot?: string): void
   setHelpOpen(open: boolean): void
 
   /* selection */
@@ -224,7 +230,10 @@ export const useStore = create<SbrState>((set, get) => ({
       if (index < 0) return
       const copy = structuredClone(doc.storyboard.shots[index]!)
       copy.id = newId('shot')
-      copy.images.forEach((image) => { image.frame.id = newId('still') })
+      for (const column of doc.storyboard.columns.filter((item) => item.type === 'image')) {
+        const images = copy.cells[column.id] as StoryImage[] | undefined
+        images?.forEach((image) => { image.frame.id = newId('still') })
+      }
       doc.storyboard.shots.splice(index + 1, 0, copy)
     })
   },
@@ -239,10 +248,55 @@ export const useStore = create<SbrState>((set, get) => ({
   addShotImages(id, frameIds) {
     get().mutate('add shot images', (doc) => {
       const shot = doc.storyboard.shots.find((item) => item.id === id)
-      if (shot) shot.images.push(...createStoryShot([...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))).images)
+      const imageColumn = doc.storyboard.columns.find((column) => column.type === 'image')
+      if (shot && imageColumn) shot.cells[imageColumn.id] = [...(shot.cells[imageColumn.id] as StoryImage[] ?? []), ...createStoryShot([...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))).cells.image as StoryImage[]]
     })
   },
-  markSaved: () => set({ dirty: false }),
+  updateStoryCell(id, columnId, value) {
+    get().mutate(`field:${id}:${columnId}`, (doc) => {
+      const shot = doc.storyboard.shots.find((item) => item.id === id)
+      if (shot) shot.cells[columnId] = value
+    })
+  },
+  addStoryColumn(column) {
+    get().mutate('add story column', (doc) => {
+      doc.storyboard.columns.push(column)
+      for (const shot of doc.storyboard.shots) shot.cells[column.id] = column.type === 'image' ? [] : ''
+    })
+  },
+  updateStoryColumn(id, patch) {
+    get().mutate(`field:column:${id}`, (doc) => {
+      const column = doc.storyboard.columns.find((item) => item.id === id)
+      if (column) Object.assign(column, patch, { id })
+    })
+  },
+  removeStoryColumn(id) {
+    get().mutate('remove story column', (doc) => {
+      doc.storyboard.columns = doc.storyboard.columns.filter((column) => column.id !== id)
+      for (const shot of doc.storyboard.shots) delete shot.cells[id]
+    })
+  },
+  reorderStoryColumn(id, toIndex) {
+    get().mutate('reorder story column', (doc) => {
+      const index = doc.storyboard.columns.findIndex((item) => item.id === id)
+      if (index < 0) return
+      const [column] = doc.storyboard.columns.splice(index, 1)
+      doc.storyboard.columns.splice(Math.max(0, Math.min(toIndex, doc.storyboard.columns.length)), 0, column!)
+    })
+  },
+  addStoryImage(id, columnId, frame, role = 'Reference') {
+    get().mutate('add story image', (doc) => {
+      const shot = doc.storyboard.shots.find((item) => item.id === id)
+      const column = doc.storyboard.columns.find((item) => item.id === columnId)
+      if (!shot || column?.type !== 'image') return
+      const current = (shot.cells[columnId] as StoryImage[] | undefined) ?? []
+      shot.cells[columnId] = [...current, { frame: { ...structuredClone(frame), id: newId('still') }, role }]
+    })
+  },
+  markSaved(snapshot) {
+    if (snapshot && currentProjectJson() !== snapshot) return
+    set({ dirty: false })
+  },
   setHelpOpen: (open) => set({ helpOpen: open }),
 
   selectMedia: (id) => set({ selectedMediaId: id, viewMode: 'clip' }),
@@ -284,7 +338,7 @@ export const useStore = create<SbrState>((set, get) => ({
     const s = get()
     const m = s.doc?.media.find((x) => x.id === mediaId)
     if (!m || !s.projectFolder) return null
-    return absMediaPath(s.projectFolder, m.sourceFile)
+    return absMediaPath(s.projectFolder, m.workingFile ?? m.sourceFile)
   },
 
   addMedia(item) {

@@ -13,6 +13,7 @@ export interface MediaItem {
   kind: MediaKind
   /** Path relative to the project folder, e.g. "media/abc-clip.mp4". */
   sourceFile: string
+  workingFile?: string
   /** Original filename, for display. */
   name: string
   durationS?: number
@@ -107,7 +108,7 @@ export interface Project {
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 3
+export const PROJECT_VERSION = 4
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2
@@ -177,9 +178,20 @@ export const STORY_FIELDS = {
 } as const
 
 export type StoryField = keyof typeof STORY_FIELDS
-export type StoryShot = Record<StoryField, string> & {
+export type StoryColumnType = 'text' | 'number' | 'single' | 'multi' | 'date' | 'checkbox' | 'image'
+export interface StoryColumn {
   id: string
-  images: { frame: Frame; role: string }[]
+  name: string
+  type: StoryColumnType
+  width: number
+  visible: boolean
+  options: string[]
+}
+export type StoryCell = string | number | boolean | string[] | StoryImage[] | null
+export interface StoryImage { frame: Frame; role: string }
+export interface StoryShot {
+  id: string
+  cells: Record<string, StoryCell>
   startS: number | null
   endS: number | null
 }
@@ -187,5 +199,6 @@ export type StoryShot = Record<StoryField, string> & {
 export interface Storyboard {
   title: string
   description: string
+  columns: StoryColumn[]
   shots: StoryShot[]
 }

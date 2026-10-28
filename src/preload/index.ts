@@ -11,6 +11,7 @@ export type { ExportFrameInput } from '../shared/exports'
 export interface ImportedMedia {
   kind: 'image' | 'video'
   sourceFile: string
+  workingFile?: string
   name: string
   width: number
   height: number
@@ -53,6 +54,7 @@ export interface SbrAPI {
   newProjectDialog(): Promise<string | null>
   openProjectDialog(): Promise<string | null>
   importMediaDialog(): Promise<string[]>
+  importImagesDialog(): Promise<string[]>
   saveProject(folder: string, json: string): Promise<boolean>
   saveBackup(folder: string, json: string): Promise<boolean>
   loadProject(folder: string): Promise<{
@@ -107,6 +109,7 @@ const api: SbrAPI = {
   newProjectDialog: () => ipcRenderer.invoke('dialog:newProject'),
   openProjectDialog: () => ipcRenderer.invoke('dialog:openProject'),
   importMediaDialog: () => ipcRenderer.invoke('dialog:importMedia'),
+  importImagesDialog: () => ipcRenderer.invoke('dialog:importImages'),
   saveProject: (folder, json) => ipcRenderer.invoke('project:save', folder, json),
   saveBackup: (folder, json) => ipcRenderer.invoke('project:saveBackup', folder, json),
   loadProject: (folder) => ipcRenderer.invoke('project:load', folder),

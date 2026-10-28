@@ -3,7 +3,7 @@
  * parseProject never throws on malformed input; it returns { doc, issues }.
  */
 
-import type { Project, MediaItem, Frame, MediaKind, Crop, ShotMeta, Annotation, StoryShot } from './types'
+import type { Project, MediaItem, Frame, MediaKind, Crop, ShotMeta, Annotation, StoryShot, StoryColumn, StoryColumnType, StoryCell } from './types'
 import { PROJECT_VERSION, DEFAULT_FRAME_DURATION_S, emptyShotMeta, STORY_FIELDS } from './types'
 import { DEFAULT_PROFILE_ID } from './profiles'
 
@@ -21,7 +21,7 @@ export function createProject(name: string): Project {
     name,
     media: [],
     frames: [],
-    storyboard: { title: name, description: '', shots: [] },
+    storyboard: { title: name, description: '', columns: defaultStoryColumns(), shots: [] },
     settings: { gallerySort: 'time', defaultProfileId: DEFAULT_PROFILE_ID, audioFile: null }
   }
 }
@@ -33,6 +33,7 @@ export function createMediaItem(
     id: fields.id ?? newId('media'),
     kind: fields.kind,
     sourceFile: fields.sourceFile,
+    workingFile: fields.workingFile,
     name: fields.name,
     durationS: fields.durationS,
     width: fields.width,
@@ -137,6 +138,7 @@ function sanitizeMedia(m: unknown, issues: ParseIssue[]): MediaItem | null {
     id: o.id,
     kind,
     sourceFile: o.sourceFile,
+    workingFile: typeof o.workingFile === 'string' ? o.workingFile : undefined,
     name: typeof o.name === 'string' ? o.name : o.sourceFile,
     durationS: typeof o.durationS === 'number' ? o.durationS : undefined,
     width: typeof o.width === 'number' ? o.width : 0,
@@ -238,37 +240,95 @@ function sanitizeAnnotation(a: unknown): Annotation | null {
 }
 
 export function createStoryShot(frames: Frame[] = []): StoryShot {
-  return {
-    ...Object.fromEntries(Object.keys(STORY_FIELDS).map((key) => [key, ''])) as Record<keyof typeof STORY_FIELDS, string>,
-    ...frames[0]?.shot,
-    id: newId('shot'),
-    title: frames[0]?.label ?? '',
-    notes: frames[0]?.notes ?? '',
-    images: frames.map((frame, index) => ({ frame: { ...structuredClone(frame), id: newId('still') }, role: index === 0 ? 'Start' : index === frames.length - 1 ? 'End' : 'Middle' })),
-    startS: null,
-    endS: null
+  const columns = defaultStoryColumns()
+  const cells: Record<string, StoryCell> = Object.fromEntries(columns.map((column) => [column.id, column.type === 'image' ? [] : '']))
+  const shot = { id: newId('shot'), cells, startS: null, endS: null }
+  const values: Record<string, string> = {
+    sceneNo: frames[0]?.shot.sceneNo ?? '', shotNo: frames[0]?.shot.shotNo ?? '', title: frames[0]?.label ?? '', shotSize: frames[0]?.shot.shotSize ?? '',
+    cameraAngle: frames[0]?.shot.cameraAngle ?? '', lens: frames[0]?.shot.lens ?? '', movement: frames[0]?.shot.movement ?? '',
+    transition: frames[0]?.shot.transition ?? '', description: '', composition: '', lighting: '', dialogue: '', sound: '', notes: frames[0]?.notes ?? ''
   }
+  for (const column of columns) if (column.id in values) shot.cells[column.id] = values[column.id]!
+  shot.cells.image = frames.map((frame, index) => ({ frame: { ...structuredClone(frame), id: newId('still') }, role: index === 0 ? 'Start' : index === frames.length - 1 ? 'End' : 'Middle' }))
+  return shot
 }
 
 function sanitizeStoryboard(value: unknown, frames: Frame[], issues: ParseIssue[], name: string): Project['storyboard'] {
-  if (!value || typeof value !== 'object') return { title: name, description: '', shots: [...frames].sort((a, b) => a.order - b.order).map((frame) => createStoryShot([frame])) }
+  if (!value || typeof value !== 'object') return { title: name, description: '', columns: defaultStoryColumns(), shots: [...frames].sort((a, b) => a.order - b.order).map((frame) => createStoryShot([frame])) }
   const raw = value as Record<string, unknown>
+  const columns = Array.isArray(raw.columns) ? raw.columns.map(sanitizeStoryColumn).filter((item): item is StoryColumn => item !== null) : defaultStoryColumns()
   const shots: StoryShot[] = []
   if (Array.isArray(raw.shots)) for (const item of raw.shots) {
     if (!item || typeof item !== 'object') continue
     const shot = item as Record<string, unknown>
-    const result = createStoryShot()
-    if (typeof shot.id === 'string') result.id = shot.id
-    for (const key of Object.keys(STORY_FIELDS) as (keyof typeof STORY_FIELDS)[]) if (typeof shot[key] === 'string') result[key] = shot[key] as string
+    const cells: Record<string, StoryCell> = Object.fromEntries(columns.map((column) => [column.id, column.type === 'image' ? [] : '']))
+    const result: StoryShot = { id: typeof shot.id === 'string' ? shot.id : newId('shot'), cells, startS: null, endS: null }
+    if (shot.cells && typeof shot.cells === 'object') for (const column of columns) result.cells[column.id] = sanitizeCell((shot.cells as Record<string, unknown>)[column.id], column, issues)
+    else {
+      for (const key of Object.keys(STORY_FIELDS) as (keyof typeof STORY_FIELDS)[]) {
+        const value = shot[key]
+        const column = columns.find((item) => item.id === key)
+        if (column && typeof value === 'string') result.cells[column.id] = value
+        else if (typeof value === 'string' && value) {
+          const legacy = { id: `legacy-${key}`, name: STORY_FIELDS[key], type: 'text' as const, width: 180, visible: false, options: [] }
+          columns.push(legacy); result.cells[legacy.id] = value
+        }
+      }
+      const known = new Set([...Object.keys(STORY_FIELDS), 'id', 'images', 'startS', 'endS', 'cells'])
+      for (const [key, value] of Object.entries(shot)) {
+        if (known.has(key) || typeof value !== 'string' && typeof value !== 'number') continue
+        const legacy = columns.find((column) => column.id === `legacy-${key}`) ?? { id: `legacy-${key}`, name: key, type: 'text' as const, width: 180, visible: false, options: [] }
+        if (!columns.includes(legacy)) columns.push(legacy)
+        result.cells[legacy.id] = String(value)
+      }
+      const imageColumn = columns.find((column) => column.type === 'image')
+      if (imageColumn && Array.isArray(shot.images)) result.cells[imageColumn.id] = shot.images.flatMap((image) => {
+        if (!image || typeof image !== 'object') return []
+        const entry = image as Record<string, unknown>; const frame = sanitizeFrame(entry.frame, issues)
+        return frame ? [{ frame, role: typeof entry.role === 'string' ? entry.role : '' }] : []
+      })
+    }
     for (const key of ['startS', 'endS'] as const) if (typeof shot[key] === 'number' && Number.isFinite(shot[key]) && shot[key] >= 0) result[key] = shot[key] as number
     if (result.startS !== null && result.endS !== null && result.endS < result.startS) result.endS = null
-    if (Array.isArray(shot.images)) for (const image of shot.images) {
-      if (!image || typeof image !== 'object') continue
-      const entry = image as Record<string, unknown>
-      const frame = sanitizeFrame(entry.frame, issues)
-      if (frame) result.images.push({ frame, role: typeof entry.role === 'string' ? entry.role : '' })
-    }
     shots.push(result)
   }
-  return { title: typeof raw.title === 'string' ? raw.title : name, description: typeof raw.description === 'string' ? raw.description : '', shots }
+  return { title: typeof raw.title === 'string' ? raw.title : name, description: typeof raw.description === 'string' ? raw.description : '', columns, shots }
+}
+
+export function defaultStoryColumns(): StoryColumn[] {
+  return [
+    { id: 'shotNo', name: '镜号', type: 'number', width: 80, visible: true, options: [] },
+    { id: 'image', name: '画面', type: 'image', width: 220, visible: true, options: [] },
+    { id: 'description', name: '内容', type: 'text', width: 260, visible: true, options: [] },
+    { id: 'sound', name: '声音', type: 'text', width: 220, visible: true, options: [] },
+    { id: 'duration', name: '时长（秒）', type: 'number', width: 100, visible: true, options: [] },
+    { id: 'shotSize', name: '景别', type: 'single', width: 110, visible: true, options: ['大远景', '远景', '全景', '中景', '近景', '特写', '大特写'] },
+    { id: 'movement', name: '运镜', type: 'single', width: 110, visible: true, options: ['固定', '推', '拉', '摇', '移', '跟', '升降', '手持', '航拍'] },
+    { id: 'lens', name: '焦段', type: 'single', width: 110, visible: false, options: ['14mm', '24mm', '35mm', '50mm', '85mm', '135mm'] },
+    { id: 'cameraAngle', name: '机位', type: 'single', width: 110, visible: false, options: ['平视', '俯拍', '仰拍', '顶拍', '低机位', '主观'] },
+    { id: 'transition', name: '转场', type: 'single', width: 110, visible: false, options: ['切', '淡入淡出', '叠化', '划像', '匹配剪辑'] }
+  ]
+}
+
+function sanitizeStoryColumn(value: unknown): StoryColumn | null {
+  if (!value || typeof value !== 'object') return null
+  const item = value as Record<string, unknown>
+  const types: StoryColumnType[] = ['text', 'number', 'single', 'multi', 'date', 'checkbox', 'image']
+  if (typeof item.id !== 'string' || typeof item.name !== 'string' || !types.includes(item.type as StoryColumnType)) return null
+  return { id: item.id, name: item.name, type: item.type as StoryColumnType, width: typeof item.width === 'number' ? Math.max(60, item.width) : 160, visible: item.visible !== false, options: Array.isArray(item.options) ? item.options.filter((option): option is string => typeof option === 'string') : [] }
+}
+
+function sanitizeCell(value: unknown, column: StoryColumn, issues: ParseIssue[]): StoryCell {
+  if (column.type === 'image') {
+    if (!Array.isArray(value)) return []
+    return value.flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') return []
+      const image = entry as Record<string, unknown>; const frame = sanitizeFrame(image.frame, issues)
+      return frame ? [{ frame, role: typeof image.role === 'string' ? image.role : '' }] : []
+    })
+  }
+  if (column.type === 'checkbox') return value === true
+  if (column.type === 'number') return typeof value === 'number' || typeof value === 'string' ? value : ''
+  if (column.type === 'multi') return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+  return typeof value === 'string' ? value : ''
 }

@@ -15,6 +15,17 @@ export function Gallery(): JSX.Element {
     useStore.getState().addShots(chosen.map((frame) => frame.id), grouped)
     useStore.getState().setWorkspace('storyboard')
   }
+  const importImages = async (): Promise<void> => {
+    const s = useStore.getState()
+    if (!s.projectFolder) return
+    for (const path of await window.sbr.importImagesDialog()) {
+      try {
+        const item = await window.sbr.importMedia(s.projectFolder, path)
+        const media = useStore.getState().addMedia(item)
+        useStore.getState().addFrame(media.id, 0, item.name)
+      } catch (error) { useStore.getState().toast(t('Operation failed: {error}', { error: (error as Error).message }), 'error') }
+    }
+  }
   const runExport = async (format: 'png' | 'jpg'): Promise<void> => {
     const s = useStore.getState()
     if (!s.projectFolder || !s.doc) return
@@ -28,7 +39,7 @@ export function Gallery(): JSX.Element {
   }
   return <section className="gallery-workspace">
     <header className="section-header"><div><span className="eyebrow">02 / FRAME ARCHIVE</span><h1>{t('Frame gallery')}</h1><p>{t('Drag to arrange. Export in the order you see.')}</p></div><span className="big-count">{String(frames.length).padStart(3, '0')}</span></header>
-    <div className="gallery-toolbar"><button className="btn" onClick={() => setSelected(chosen.length === frames.length ? [] : frames.map((frame) => frame.id))}>{t(chosen.length === frames.length && frames.length ? 'Deselect all' : 'Select all')}</button><span>{chosen.length} {t('selected')}</span><div className="spacer"/><span className="hint">{t(mode === 'time' ? 'Source time order' : 'Manual order')}</span><button className="btn" onClick={() => useStore.getState().sortGallery()}>{t('Sort by source time')}</button></div>
+    <div className="gallery-toolbar"><button className="btn primary" onClick={() => void importImages()}>{t('Import image')}</button><button className="btn" onClick={() => setSelected(chosen.length === frames.length ? [] : frames.map((frame) => frame.id))}>{t(chosen.length === frames.length && frames.length ? 'Deselect all' : 'Select all')}</button><span>{chosen.length} {t('selected')}</span><div className="spacer"/><span className="hint">{t(mode === 'time' ? 'Source time order' : 'Manual order')}</span><button className="btn" onClick={() => useStore.getState().sortGallery()}>{t('Sort by source time')}</button></div>
     <div className="gallery-grid">
       {!frames.length && <div className="empty-editor"><h2>{t('Your next observation starts here.')}</h2><p>{t('Capture a frame, then build your storyboard.')}</p><button className="btn primary" onClick={() => useStore.getState().setWorkspace('capture')}>{t('Capture')}</button></div>}
       {frames.map((frame, index) => <article className={`gallery-card ${selected.includes(frame.id) ? 'selected' : ''}`} key={frame.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/frame-id', frame.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/frame-id'); if (id) useStore.getState().reorderFrame(id, index) }}>

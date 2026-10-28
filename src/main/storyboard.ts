@@ -2,7 +2,6 @@ import { BrowserWindow } from 'electron'
 import { mkdir, mkdtemp, readFile, writeFile, copyFile, rm } from 'fs/promises'
 import { join } from 'path'
 import type { StoryboardExportInput, FileExportResult } from '../shared/exports'
-import { STORY_FIELDS, type StoryField } from '../shared/types'
 import { t } from '../shared/i18n'
 import { renderDisplayStill, type ExportInput } from './export'
 import { resolveFfmpeg, run } from './ffmpeg'
@@ -45,27 +44,34 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
     const folder = await mkdtemp(join(input.exportsRoot, 'storyboard-'))
     path = join(folder, `storyboard.${input.kind}`)
     const tr = (key: string): string => t(key, {}, input.language)
-    const fields = Object.entries(STORY_FIELDS) as [StoryField, string][]
+    const columns = input.columns
+    const cellText = (shot: typeof input.shots[number], columnId: string): string => {
+      const value = shot.cells[columnId]
+      if (Array.isArray(value)) return value.map((item) => typeof item === 'string' ? item : '').filter(Boolean).join(', ')
+      return value === null || value === undefined ? '' : String(value)
+    }
     if (input.kind === 'csv') {
-      const headers = ['#', ...fields.map(([, label]) => tr(label)), tr('Start time (s)'), tr('End time (s)'), tr('Shot duration'), tr('images'), tr('Source')]
-      const rows = input.shots.map((shot, index) => [index + 1, ...fields.map(([key]) => shot[key]), shot.startS, shot.endS, shot.startS !== null && shot.endS !== null ? shot.endS - shot.startS : '', shot.images.length, shot.rendered.map((frame, i) => `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s [${tr(shot.images[i]?.role ?? 'Reference')}]`).join('\n')])
+      const headers = columns.map((column) => tr(column.name))
+      const rows = input.shots.map((shot) => columns.map((column) => column.type === 'image' ? shot.rendered.map((frame, i) => `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s [${tr(shot.imageRoles[i] ?? 'Reference')}]`).join('\n') : cellText(shot, column.id)))
       await writeFile(path, '\uFEFF' + [headers, ...rows].map((row) => row.map(csv).join(',')).join('\r\n'), 'utf-8')
       return { ok: true, path }
     }
     work = join(folder, '.render')
     await mkdir(work)
-    const articles: string[] = []
+    const rows: string[] = []
     for (const [index, shot] of input.shots.entries()) {
       const pictures: string[] = []
       for (const [i, frame] of shot.rendered.entries()) {
         const png = await renderDisplayStill(frame, work, index * 10000 + i)
-        pictures.push(`<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${escape(tr(shot.images[i]?.role ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`)
+        pictures.push(`<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${escape(tr(shot.imageRoles[i] ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`)
       }
-      articles.push(`<article><h2>${String(index + 1).padStart(3, '0')} / ${escape(shot.title || tr('(untitled)'))}</h2><div class="pictures">${pictures.join('')}</div><dl>${fields.filter(([key]) => shot[key]).map(([key, label]) => `<div><dt>${escape(tr(label))}</dt><dd>${escape(shot[key])}</dd></div>`).join('')}<div><dt>${escape(tr('Shot duration'))}</dt><dd>${shot.startS !== null && shot.endS !== null ? `${shot.startS.toFixed(2)}–${shot.endS.toFixed(2)}s / ${(shot.endS - shot.startS).toFixed(2)}s` : '—'}</dd></div></dl></article>`)
+      const cells = columns.map((column) => `<td>${column.type === 'image' ? `<div class="pictures">${pictures.join('')}</div>` : escape(cellText(shot, column.id))}</td>`).join('')
+      rows.push(`<tr>${cells}</tr>`)
     }
+    const headers = columns.map((column) => `<th>${escape(tr(column.name))}</th>`).join('')
     const html = `<!doctype html><html lang="${input.language}"><head><meta charset="UTF-8"><style>
-      *{box-sizing:border-box}body{font:11pt -apple-system,'PingFang SC',sans-serif;color:#102c59;margin:0}h1{font-size:32pt;margin:8mm 0}header{border-bottom:3mm solid #102c59;padding-bottom:7mm}header p,dd{white-space:pre-wrap;overflow-wrap:anywhere}article{padding-top:8mm}h2{font-size:17pt;border-bottom:1px solid #102c59;padding-bottom:3mm;break-after:avoid}figure{margin:0 0 4mm;break-inside:avoid}img{width:100%;height:55mm;object-fit:contain;background:#f3f4f6}figcaption{font-size:8pt;margin-top:2mm;overflow-wrap:anywhere}.pictures{display:flex;flex-wrap:wrap;gap:4mm}.pictures figure{width:calc(33.33% - 4mm)}dl{margin:0}dl>div{border-top:1px solid #ccd3df;padding:3mm 0}dt{font-size:9pt;font-weight:bold;margin-bottom:2mm}dd{margin:0;line-height:1.6}body.table dl>div{display:block}body.table dt{color:#596b87}body.cards article{break-before:page}footer{font-size:8pt;margin-top:10mm;border-top:1px solid #102c59;padding:4mm 0}
-    </style></head><body class="${input.layout}"><header><span>帧册 / FRAMEBOOK</span><h1>${escape(input.title)}</h1><p>${escape(input.description)}</p><span>${input.shots.length} ${escape(tr('shots'))}</span></header>${articles.join('')}<footer>Framebook · ItalyPocket / Based on Storyboard Reference Studio by Sam Wasserman</footer></body></html>`
+      *{box-sizing:border-box}body{font:10pt -apple-system,'PingFang SC',sans-serif;color:#111;margin:0}h1{font-size:24pt;margin:5mm 0}header{padding:6mm;border-bottom:2mm solid #102c59}header p{white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;table-layout:fixed}thead{display:table-header-group}th{background:#080808;color:#fff;padding:4mm 2mm}td{border:1px solid #777;padding:2mm;vertical-align:middle;overflow-wrap:anywhere;white-space:pre-wrap}tr{break-inside:avoid}figure{margin:0 0 2mm;break-inside:avoid}img{width:100%;height:35mm;object-fit:contain}.pictures{display:flex;flex-direction:column;gap:2mm}figcaption{font-size:7pt}footer{font-size:8pt;margin-top:6mm;border-top:1px solid #102c59;padding:3mm}
+    </style></head><body><header><span>帧册 / FRAMEBOOK</span><h1>${escape(input.title)}</h1><p>${escape(input.description)}</p><span>${input.shots.length} ${escape(tr('shots'))}</span></header><table><thead><tr>${headers}</tr></thead><tbody>${rows.join('')}</tbody></table><footer>Framebook · ItalyPocket / Based on Storyboard Reference Studio by Sam Wasserman</footer></body></html>`
     const htmlPath = join(folder, 'storyboard.html')
     await writeFile(htmlPath, html, 'utf-8')
     win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })

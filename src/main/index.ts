@@ -9,6 +9,8 @@ import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../sha
 import { app, BrowserWindow, dialog, ipcMain, shell, Menu } from 'electron'
 import { mkdir, readFile, writeFile, copyFile, stat, rename } from 'fs/promises'
 import { join, basename, extname, resolve, sep } from 'path'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { startControlServer } from './control'
 import { probeMedia } from './ffmpeg'
 import { extractFrame, extractRange, type RangeMode } from './frames'
@@ -77,7 +79,7 @@ app.on('window-all-closed', () => {
 
 /* ------------------------------- dialogs -------------------------------- */
 
-const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp']
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'tif', 'tiff', 'bmp', 'gif']
 const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm']
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac']
 
@@ -132,6 +134,16 @@ ipcMain.handle('dialog:importMedia', async () => {
   return result.filePaths
 })
 
+ipcMain.handle('dialog:importImages', async () => {
+  if (!mainWindow) return []
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: t('Import image'),
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: t('Images'), extensions: IMAGE_EXTS }]
+  })
+  return result.canceled ? [] : result.filePaths
+})
+
 /* ---------------------------- project I/O ------------------------------- */
 
 ipcMain.handle('project:save', async (_e, folder: string, json: string) => {
@@ -140,7 +152,7 @@ ipcMain.handle('project:save', async (_e, folder: string, json: string) => {
   const previous = await readFile(target, 'utf-8').catch(() => null)
   if (previous) {
     try {
-      if (JSON.parse(previous).version < 3) await writeFile(join(folder, 'project.pre-framebook.json'), previous, { flag: 'wx' }).catch(() => {})
+      if (JSON.parse(previous).version < 4) await writeFile(join(folder, 'project.pre-framebook.json'), previous, { flag: 'wx' }).catch(() => {})
     } catch {}
   }
   const temporary = join(folder, `project.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`)
@@ -194,13 +206,35 @@ ipcMain.handle('project:importMedia', async (_e, folder: string, sourcePath: str
   const name = `${Date.now().toString(36)}-${basename(sourcePath)}`
   const dest = join(mediaDir, name)
   await copyFile(sourcePath, dest)
-  const info = await probeMedia(dest)
+  let workingFile: string | undefined
+  let width = 0
+  let height = 0
+  if (kind === 'image') {
+    const workingName = `${name.replace(/\.[^.]+$/, '')}.png`
+    const workingPath = join(mediaDir, workingName)
+    try {
+      if (process.platform === 'darwin') {
+        await promisify(execFile)('/usr/bin/sips', ['-s', 'format', 'png', dest, '--out', workingPath])
+        workingFile = join('media', workingName)
+        const info = await promisify(execFile)('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', workingPath])
+        width = Number(info.stdout.match(/pixelWidth:\s*(\d+)/)?.[1]) || 0
+        height = Number(info.stdout.match(/pixelHeight:\s*(\d+)/)?.[1]) || 0
+      }
+    } catch {}
+  }
+  if (!width || !height) {
+    const info = await probeMedia(workingFile ? join(folder, workingFile) : dest)
+    width = info.width
+    height = info.height
+  }
+  const info = await probeMedia(workingFile ? join(folder, workingFile) : dest).catch(() => ({ durationS: undefined, fps: undefined }))
   return {
     kind,
     sourceFile: join('media', name),
+    workingFile,
     name: basename(sourcePath),
-    width: info.width,
-    height: info.height,
+    width,
+    height,
     durationS: info.durationS,
     fps: info.fps
   }
