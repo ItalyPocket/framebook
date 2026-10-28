@@ -2,6 +2,14 @@
 
 为拉片分析设计的 macOS 静帧与分镜本工具。基于 Sam Wasserman 的 [Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio)，保留 Apache-2.0 许可与原作者署名。
 
+## 2.2 界面
+
+采用冷白、黑色与系统蓝的合成先锋视觉：几何拼贴、网点与轨迹线分层构成，悬停按钮与引导线联动。支持系统“减少动态效果”。分镜表格提供固定表头、拖动排序、列宽调整、三档行高和多图预览；行、列、图片辅助操作在悬停或键盘聚焦时显示。
+
+工作台的素材与设置面板可收起，画廊缩略图大小可调。视图偏好独立保存在本机，不改变项目内容。
+
+![欢迎页](docs/images/framebook-welcome.png)
+
 ## 功能
 
 - 简体中文、English、跟随系统，切换后保存偏好。

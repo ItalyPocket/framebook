@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore, currentProjectJson } from '../store'
 import { useMediaUrl } from '../lib/useMediaUrl'
 import { FrameStage } from './FrameStage'
+import { ArtComposition } from '../components/ArtComposition'
 import type { MediaItem } from '@shared/types'
 import type { RangeMode } from '../../preload/index'
 
@@ -300,7 +301,7 @@ export function Viewer(): JSX.Element {
       <div className="viewer">
         <div className="viewer-stage">
           <div className="viewer-empty">
-            <div style={{ fontSize: 34 }}>🎬</div>
+            <ArtComposition/><div className="empty-frame-symbol" aria-hidden="true">⌗</div>
             {t("Select a clip or image from the bin to start pulling reference frames.")}</div>
         </div>
       </div>

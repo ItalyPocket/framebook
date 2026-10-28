@@ -9,7 +9,7 @@ export function Toasts(): JSX.Element {
   const dismissToast = useStore((s) => s.dismissToast)
 
   return (
-    <div className="toasts">
+    <div className="toasts" aria-live="polite" aria-atomic="false">
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind}`} onClick={() => dismissToast(t.id)}>
           {t.text}

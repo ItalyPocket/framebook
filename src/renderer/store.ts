@@ -48,7 +48,7 @@ interface SbrState {
   removeShot(id: string): void
   duplicateShot(id: string): void
   reorderShot(id: string, toIndex: number): void
-  addShotImages(id: string, frameIds: string[]): void
+  addShotImages(id: string, frameIds: string[], columnId?: string): void
   updateStoryCell(id: string, columnId: string, value: StoryCell): void
   addStoryColumn(column: StoryColumn): void
   updateStoryColumn(id: string, patch: Partial<StoryColumn>): void
@@ -245,10 +245,10 @@ export const useStore = create<SbrState>((set, get) => ({
       doc.storyboard.shots.splice(Math.max(0, Math.min(toIndex, doc.storyboard.shots.length)), 0, shot!)
     })
   },
-  addShotImages(id, frameIds) {
+  addShotImages(id, frameIds, columnId) {
     get().mutate('add shot images', (doc) => {
       const shot = doc.storyboard.shots.find((item) => item.id === id)
-      const imageColumn = doc.storyboard.columns.find((column) => column.type === 'image')
+      const imageColumn = doc.storyboard.columns.find((column) => column.type === 'image' && (!columnId || column.id === columnId))
       if (shot && imageColumn) shot.cells[imageColumn.id] = [...(shot.cells[imageColumn.id] as StoryImage[] ?? []), ...createStoryShot([...doc.frames].sort((a, b) => a.order - b.order).filter((frame) => frameIds.includes(frame.id))).cells.image as StoryImage[]]
     })
   },
@@ -487,7 +487,7 @@ export const useStore = create<SbrState>((set, get) => ({
 
   toast(text, kind = 'info') {
     const id = `t${++toastSeq}`
-    set({ toasts: [...get().toasts, { id, text, kind }] })
+    set({ toasts: [...get().toasts.filter((item) => item.text !== text || item.kind !== kind), { id, text, kind }].slice(-3) })
     setTimeout(() => get().dismissToast(id), 5000)
   },
   dismissToast(id) {

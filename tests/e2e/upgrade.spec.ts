@@ -265,7 +265,7 @@ test('board export composites annotations via the renderer (no hidden windows)',
   // Click the real Export board button — this runs buildExportInputs, which
   // composites annotations onto the annotated frames' stills renderer-side.
   await page.getByRole('button', { name: 'Export board' }).click()
-  await expect(page.locator('.toast.success')).toBeVisible({ timeout: 60_000 })
+  await expect(page.locator('.toast.success').filter({ hasText: 'Board exported' })).toBeVisible({ timeout: 60_000 })
   // The doc must still be present (no renderer reset from a hidden window).
   const stillHasDoc = await page.evaluate(() => !!window.__sbr.store.getState().doc)
   expect(stillHasDoc).toBe(true)

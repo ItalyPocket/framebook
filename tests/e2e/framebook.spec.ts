@@ -33,7 +33,7 @@ test('gallery, editable storyboard table, image cells, save and exports', async 
     await page.getByRole('button', { name: '合并为一个多图镜头', exact: true }).click()
     await expect(page.locator('.story-table tbody tr')).toHaveCount(1)
     await expect(page.locator('.story-cell-image')).toHaveCount(3)
-    await page.locator('.story-table tbody tr td').nth(2).getByRole('textbox').fill('主角走入画面，镜头缓慢推进。')
+    await page.locator('.story-table tbody tr').getByRole('textbox', { name: '内容', exact: true }).fill('主角走入画面，镜头缓慢推进。')
     await page.screenshot({ path: join(outputs, 'framebook-storyboard.png') })
     const result = await page.evaluate(async () => {
       const s = window.__sbr.store.getState()

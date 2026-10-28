@@ -6,6 +6,8 @@ import { t } from '@shared/i18n'
  */
 
 import { useCallback, useEffect } from 'react'
+import { usePreference } from './components/Controls'
+import { ArtComposition } from './components/ArtComposition'
 import { useStore, currentProjectJson } from './store'
 import { MediaBin } from './panels/MediaBin'
 import { Viewer } from './panels/Viewer'
@@ -80,8 +82,8 @@ function Welcome(): JSX.Element {
 
   return (
     <div className="welcome">
-      <div className="welcome-collage" aria-hidden="true"><div className="collage-orbit"/><div className="collage-grid"/><div className="collage-frame frame-a">01</div><div className="collage-frame frame-b">02</div><div className="collage-block"/><span>LOOK / FRAME / THINK</span></div>
-      <div className="welcome-title"><span className="eyebrow">A FIELD GUIDE TO MOVING IMAGES</span><h1>帧册<span>FRAMEBOOK</span></h1></div>
+      <ArtComposition variant="welcome"/>
+      <div className="welcome-title"><span className="eyebrow">01 — A FIELD GUIDE TO MOVING IMAGES</span><h1>帧册<span>FRAME<br/>BOOK<span className="brand-dot">01</span></span></h1><div className="welcome-rule"/></div>
       <p>
         {t("Capture a frame. Understand a shot. Build your story.")}</p>
       <div className="actions">
@@ -137,6 +139,7 @@ function useKeyboard(): void {
         if (json && s.projectFolder) void window.sbr.saveProject(s.projectFolder, json).then(() => { s.markSaved(json); s.toast(t('Project saved.'), 'success') }).catch((error) => s.toast(t('Could not save project: {error}', { error: (error as Error).message }), 'error'))
         return
       }
+      if (document.querySelector('[role=dialog], .floating-menu')) return
       if (e.key === '?') {
         s.setHelpOpen(!s.helpOpen)
         return
@@ -213,6 +216,8 @@ function useKeyboard(): void {
 
 export function App(): JSX.Element {
   const language = useLanguage((s) => s.preference)
+  const [binVisible, setBinVisible] = usePreference('framebook.ui.bin', 'yes', ['yes', 'no'] as const)
+  const [inspectorVisible, setInspectorVisible] = usePreference('framebook.ui.inspector', 'yes', ['yes', 'no'] as const)
   const doc = useStore((s) => s.doc)
   const workspace = useStore((s) => s.workspace)
   const canUndo = useStore((s) => s.history.length > 0)
@@ -255,10 +260,7 @@ export function App(): JSX.Element {
     <div className="app" data-language={language}>
       <div className="titlebar">
         <span className="app-name">帧册 / FRAMEBOOK</span>
-        <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
-          {doc.name}
-          {dirty ? ' •' : ''}
-        </span>
+        <div className="project-identity"><span className="project-name" title={doc.name}>{doc.name}</span><span className={`save-state ${dirty ? 'dirty' : ''}`} role="status">{t(dirty ? 'Unsaved changes' : 'Saved')}</span></div>
         <div className="spacer" />
         <button className="btn small" disabled={!canUndo} onClick={() => useStore.getState().undo()}>{t('Undo')}</button>
         <button className="btn small" disabled={!canRedo} onClick={() => useStore.getState().redo()}>{t('Redo')}</button>
@@ -267,7 +269,7 @@ export function App(): JSX.Element {
         <button className="btn small" onClick={() => useStore.getState().setHelpOpen(true)}>{t("? Help")}</button>
       </div>
       <nav className="workspace-nav">{(['capture', 'gallery', 'storyboard'] as const).map((value, index) => <button key={value} className={workspace === value ? 'active' : ''} onClick={() => useStore.getState().setWorkspace(value)}><span>0{index + 1}</span>{t({capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor'}[value])}</button>)}<span className="nav-note">FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}</span></nav>
-      {workspace === 'capture' ? <div className="workspace"><MediaBin /><Viewer /><Inspector /><Board /></div> : workspace === 'gallery' ? <Gallery /> : <StoryboardEditor />}
+      {workspace === 'capture' ? <div className={`capture-layout ${binVisible === 'no' ? 'bin-collapsed' : ''} ${inspectorVisible === 'no' ? 'inspector-collapsed' : ''}`}><div className="capture-bar"><button className="text-button" aria-expanded={binVisible === 'yes'} onClick={() => setBinVisible(binVisible === 'yes' ? 'no' : 'yes')}>{t('Media bin')} {binVisible === 'yes' ? '−' : '＋'}</button><div className="spacer"/><button className="text-button" aria-expanded={inspectorVisible === 'yes'} onClick={() => setInspectorVisible(inspectorVisible === 'yes' ? 'no' : 'yes')}>{t('Frame settings')} {inspectorVisible === 'yes' ? '−' : '＋'}</button></div><div className="workspace"><MediaBin /><Viewer /><Inspector /><Board /></div></div> : workspace === 'gallery' ? <Gallery /> : <StoryboardEditor />}
       <Toasts />
       <HelpOverlay />
       <Present />

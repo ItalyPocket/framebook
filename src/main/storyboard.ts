@@ -47,12 +47,15 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
     const columns = input.columns
     const cellText = (shot: typeof input.shots[number], columnId: string): string => {
       const value = shot.cells[columnId]
+      if (columnId === 'shotNo' && (value === '' || value === null || value === undefined)) return String(input.shots.indexOf(shot) + 1)
       if (Array.isArray(value)) return value.map((item) => typeof item === 'string' ? item : '').filter(Boolean).join(', ')
       return value === null || value === undefined ? '' : String(value)
     }
+    const framesFor = (shot: typeof input.shots[number], columnId: string) => shot.renderedByColumn ? shot.renderedByColumn[columnId] ?? [] : shot.rendered
+    const rolesFor = (shot: typeof input.shots[number], columnId: string) => shot.rolesByColumn ? shot.rolesByColumn[columnId] ?? [] : shot.imageRoles
     if (input.kind === 'csv') {
       const headers = columns.map((column) => tr(column.name))
-      const rows = input.shots.map((shot) => columns.map((column) => column.type === 'image' ? shot.rendered.map((frame, i) => `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s [${tr(shot.imageRoles[i] ?? 'Reference')}]`).join('\n') : cellText(shot, column.id)))
+      const rows = input.shots.map((shot) => columns.map((column) => column.type === 'image' ? framesFor(shot, column.id).map((frame, i) => `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s [${tr(rolesFor(shot, column.id)[i] ?? 'Reference')}]`).join('\n') : cellText(shot, column.id)))
       await writeFile(path, '\uFEFF' + [headers, ...rows].map((row) => row.map(csv).join(',')).join('\r\n'), 'utf-8')
       return { ok: true, path }
     }
@@ -60,13 +63,17 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
     await mkdir(work)
     const rows: string[] = []
     for (const [index, shot] of input.shots.entries()) {
-      const pictures: string[] = []
-      for (const [i, frame] of shot.rendered.entries()) {
-        const png = await renderDisplayStill(frame, work, index * 10000 + i)
-        pictures.push(`<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${escape(tr(shot.imageRoles[i] ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`)
+      const cells: string[] = []
+      let pictureIndex = 0
+      for (const column of columns) {
+        const pictures: string[] = []
+        if (column.type === 'image') for (const [i, frame] of framesFor(shot, column.id).entries()) {
+          const png = await renderDisplayStill(frame, work, index * 10000 + pictureIndex++)
+          pictures.push(`<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${escape(tr(rolesFor(shot, column.id)[i] ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`)
+        }
+        cells.push(`<td>${column.type === 'image' ? `<div class="pictures">${pictures.join('')}</div>` : escape(cellText(shot, column.id))}</td>`)
       }
-      const cells = columns.map((column) => `<td>${column.type === 'image' ? `<div class="pictures">${pictures.join('')}</div>` : escape(cellText(shot, column.id))}</td>`).join('')
-      rows.push(`<tr>${cells}</tr>`)
+      rows.push(`<tr>${cells.join('')}</tr>`)
     }
     const headers = columns.map((column) => `<th>${escape(tr(column.name))}</th>`).join('')
     const html = `<!doctype html><html lang="${input.language}"><head><meta charset="UTF-8"><style>

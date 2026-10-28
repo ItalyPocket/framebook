@@ -22,7 +22,7 @@ export interface StoryboardExportInput {
   description: string
   exportsRoot: string
   columns: StoryColumn[]
-  shots: (StoryShot & { rendered: ExportFrameInput[]; imageRoles: string[] })[]
+  shots: (StoryShot & { rendered: ExportFrameInput[]; imageRoles: string[]; renderedByColumn?: Record<string, ExportFrameInput[]>; rolesByColumn?: Record<string, string[]> })[]
   language: Language
   layout: 'table' | 'cards'
   orientation: 'portrait' | 'landscape'
