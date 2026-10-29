@@ -1,3 +1,4 @@
+import { FrameContext } from '../components/FrameContext'
 import { t } from '@shared/i18n'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -10,10 +11,10 @@ import type { Frame } from '@shared/types'
 function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Element {
   const active = useStore((s) => s.selectedFrameId === frame.id)
   const still = useStore((s) => s.stills[frame.id])
-  const selectFrame = useStore((s) => s.selectFrame)
   const removeFrame = useStore((s) => s.removeFrame)
   const reorderFrame = useStore((s) => s.reorderFrame)
   const folder = useStore((s) => s.projectFolder)
+  const [context,setContext]=useState<{x:number;y:number} | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const url = useAbsUrl(still?.path ?? null)
 
@@ -34,7 +35,10 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
     <div
       className={`board-card ${active ? 'active' : ''} ${dragOver ? 'drag-over' : ''}`}
       draggable
-      onClick={() => selectFrame(frame.id)}
+      tabIndex={0}
+      onContextMenu={(event) => {event.preventDefault();setContext({x:event.clientX,y:event.clientY})}}
+      onKeyDown={(event) => {if(event.key==='ContextMenu' || (event.shiftKey && event.key==='F10')) {event.preventDefault();const rect=event.currentTarget.getBoundingClientRect();setContext({x:rect.left,y:rect.bottom})}}}
+      onClick={() => useStore.setState({selectedFrameId:frame.id,selectedMediaId:frame.mediaId,viewMode:'clip',seekTime:frame.timeS})}
       onDragStart={(e) => e.dataTransfer.setData('text/frame-id', frame.id)}
       onDragOver={(e) => {
         e.preventDefault()
@@ -52,6 +56,7 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
         }
       }}
     >
+      {context && <FrameContext frame={frame} point={context} onClose={() => setContext(null)} />}
       <button className="board-card-del" onClick={onRemove} title={t("Remove (⌫)")}>✕</button>
       <div className="board-card-thumb-wrap">
         {url ? <img className="board-card-thumb" src={url} alt={frame.label} /> : <div className="board-card-thumb" />}

@@ -15,6 +15,7 @@ export interface MediaItem {
   sourceFile: string
   workingFile?: string
   externalPath?: string
+  capturedFrameId?: string
   folderId?: string
   /** Original filename, for display. */
   name: string

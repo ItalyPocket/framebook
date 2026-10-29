@@ -1,3 +1,4 @@
+import { ensureCapture } from './lib/captureMedia'
 import { aspectRatio } from '@shared/types'
 import { t } from '@shared/i18n'
 import { create } from 'zustand'
@@ -113,7 +114,7 @@ interface SbrState {
 
   /* media + frames */
   addMedia(item: Omit<MediaItem, 'id'>): MediaItem
-  addFrame(mediaId: string, timeS: number, label?: string): Frame
+  addFrame(mediaId: string, timeS: number, label?: string, still?: ExtractedStill): Frame
   removeFrame(frameId: string): void
   reorderFrame(frameId: string, toIndex: number): void
   setFrameLabel(frameId: string, label: string): void
@@ -415,14 +416,19 @@ export const useStore = create<SbrState>((set, get) => ({
     return created
   },
 
-  addFrame(mediaId, timeS, label = '') {
+  addFrame(mediaId, timeS, label = '', still) {
     const order = get().doc?.frames.length ?? 0
     const frame = createFrame(mediaId, timeS, order, label)
     get().mutate('add frame', (doc) => {
       doc.frames.push(frame)
+      const source=doc.media.find((item) => item.id===mediaId)
+      if(source?.kind==='video') doc.media.push(createMediaItem({kind:'image',sourceFile:`media/captures/${frame.id}.png`,name:`${label || 'Frame'}.png`,width:source.width,height:source.height,capturedFrameId:frame.id}))
       if (doc.settings.gallerySort === 'time') sortFrames(doc)
     })
     set({ selectedFrameId: frame.id })
+    if(still) get().setStill(frame.id,still)
+    const folder=get().projectFolder
+    if(get().doc?.media.some((item) => item.capturedFrameId===frame.id)) void ensureCapture(frame.id).catch((error) => {if(get().projectFolder===folder) get().toast(String(error),'error')})
     return frame
   },
 

@@ -84,7 +84,7 @@ async function execute(action: string, params: Params): Promise<unknown> {
       if (!res.ok) throw new Error(res.error ?? 'extraction failed')
       const ids: string[] = []
       for (const { time, path } of res.frames) {
-        const frame = s.addFrame(mediaId!, time, `SHOT @ ${time.toFixed(1)}s`)
+        const frame = s.addFrame(mediaId!, time, `SHOT @ ${time.toFixed(1)}s`, {path,width:media.width,height:media.height})
         s.setStill(frame.id, { path, width: media.width, height: media.height })
         ids.push(frame.id)
       }

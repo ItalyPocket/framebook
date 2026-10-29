@@ -1,3 +1,4 @@
+import { FramePreview } from '../components/FramePreview'
 import type { ExportPreview } from '@shared/workspace'
 import { ExportPreviewDialog } from '../components/ExportPreview'
 import { useMemo, useState } from 'react'
@@ -15,6 +16,7 @@ export function Gallery(): JSX.Element {
     [rawFrames]
   )
   const mode = useStore((s) => s.doc?.settings.gallerySort)
+  const [previewFrameId,setPreviewFrameId]=useState<string | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [exportPreview, setExportPreview] = useState<ExportPreview | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -72,6 +74,7 @@ export function Gallery(): JSX.Element {
       {exportPreview && (
         <ExportPreviewDialog preview={exportPreview} onClose={() => setExportPreview(null)} />
       )}
+      {previewFrameId && frames.find((frame) => frame.id===previewFrameId) && <FramePreview frame={frames.find((frame) => frame.id===previewFrameId)!} onClose={() => setPreviewFrameId(null)} />}
       <ArtComposition />
       <header className="section-header">
         <div>
@@ -148,9 +151,7 @@ export function Gallery(): JSX.Element {
               className="gallery-image"
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest('label, input, button')) return
-                useStore.setState({ selectedFrameId: frame.id, selectedMediaId: frame.mediaId, seekTime: frame.timeS })
-                useStore.getState().setViewMode('clip')
-                useStore.getState().setWorkspace('capture')
+                setPreviewFrameId(frame.id)
               }}
 
             >

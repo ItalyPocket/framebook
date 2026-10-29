@@ -1,5 +1,12 @@
 # 2.5.2 — 清理与 AI 暂停
 
+## 2.6.2
+
+- Adapt gallery cards to image proportions and open stills in a full-size preview.
+- Seek source videos from Capture stills and add individual PNG/JPG export actions.
+- Store new video captures as portable project image assets.
+- Use a Chinese-capable system font for exported contact sheets.
+
 ## 2.6.1
 
 - Restore the full gallery grid; keep video preview and timeline markers in Capture.

@@ -61,6 +61,7 @@ export interface SbrAPI {
   libtvUpload(folder: string, projectId: string, files: LibTVFile[]): Promise<string>
   libtvStatus(id: string): Promise<LibTVJob | null>
   libtvCancel(id: string): Promise<void>
+  materializeCapture(folder: string, frameId: string, source: string): Promise<void>
   revealMedia(folder: string, id: string): Promise<void>
   getSettings(): Promise<AppSettings>
   setSettings(patch: Partial<AppSettings>): Promise<AppSettings>
@@ -135,6 +136,7 @@ const api: SbrAPI = {
   libtvUpload: (folder, projectId, files) => ipcRenderer.invoke('libtv:upload', folder, projectId, files),
   libtvStatus: (id) => ipcRenderer.invoke('libtv:status', id),
   libtvCancel: (id) => ipcRenderer.invoke('libtv:cancel', id),
+  materializeCapture: (folder, frameId, source) => ipcRenderer.invoke('media:materializeCapture',folder,frameId,source),
   revealMedia: (folder, id) => ipcRenderer.invoke('media:reveal', folder, id),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),

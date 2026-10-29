@@ -607,5 +607,9 @@
   "If the returned project does not match, obtain the correct project key. Do not share the key or include it in project files.": "若返回项目与目标不符，请获取目标项目对应的密钥。不要公开密钥或将它写入项目文件。",
   "Open LibTV": "打开 LibTV",
   "Official connection guide": "官方连接指南",
-  "LibTV may change its access-key entry or API availability. A resource URL does not confirm that it is visible on the canvas.": "LibTV 的密钥入口及接口可用性可能调整。资源网址不代表素材已在画布中可见。"
+  "LibTV may change its access-key entry or API availability. A resource URL does not confirm that it is visible on the canvas.": "LibTV 的密钥入口及接口可用性可能调整。资源网址不代表素材已在画布中可见。",
+  "Export PNG": "导出 PNG",
+  "Export JPG": "导出 JPG",
+  "Copy image": "复制图片",
+  "Edit still": "编辑静帧"
 }

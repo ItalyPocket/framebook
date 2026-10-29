@@ -243,7 +243,7 @@ function AutoBoardModal({
         return
       }
       for (const { time, path } of res.frames) {
-        const frame = addFrame(media.id, time, t('SHOT @ {time}', { time: fmt(time) }))
+        const frame = addFrame(media.id, time, t('SHOT @ {time}', { time: fmt(time) }), {path,width:media.width,height:media.height})
         // The extractRange output is already a full-res PNG we can reuse.
         setStill(frame.id, { path, width: media.width, height: media.height })
       }

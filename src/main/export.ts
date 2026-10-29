@@ -1,3 +1,4 @@
+import { existsSync } from 'fs'
 import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import { join } from 'path'
 import { resolveFfmpeg, run } from './ffmpeg'
@@ -152,6 +153,8 @@ async function buildContactSheet(
   stillPaths: string[]
 ): Promise<void> {
   if (stillPaths.length === 0) return
+  const fontFile=['/System/Library/Fonts/PingFang.ttc','/System/Library/Fonts/Supplemental/Songti.ttc','C:/Windows/Fonts/msyh.ttc','/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'].find((path) => existsSync(path))
+  const font=fontFile ? `fontfile='${escapeDrawtext(fontFile)}':` : ''
   const cellW = 480
   const cellH = 270
   const cols = Math.min(4, stillPaths.length)
@@ -168,7 +171,7 @@ async function buildContactSheet(
     const vf = [
       `scale=${cellW}:${cellH}:force_original_aspect_ratio=decrease`,
       `pad=${cellW}:${cellH}:(ow-iw)/2:(oh-ih)/2:color=0x18181b`,
-      `drawtext=text='${label}':x=8:y=${cellH - 26}:fontsize=18:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6`
+      `drawtext=${font}text='${label}':x=8:y=${cellH - 26}:fontsize=18:fontcolor=white:box=1:boxcolor=0x000000AA:boxborderw=6`
     ].join(',')
     const res = await run(ffmpeg, ['-y', '-i', stillPaths[i]!, '-vf', vf, cell])
     if (res.code === 0) cellFiles.push(cell)

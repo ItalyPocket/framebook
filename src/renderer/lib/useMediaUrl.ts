@@ -1,3 +1,4 @@
+import { ensureCapture } from './captureMedia'
 import { useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { projectFileUrl, mimeForMedia } from './paths'
@@ -7,6 +8,7 @@ import type { MediaItem } from '@shared/types'
 export function useMediaUrl(media: MediaItem | null): string | null {
   const folder = useStore((s) => s.projectFolder)
   const [url, setUrl] = useState<string | null>(null)
+  const capturedStill=useStore((s) => media?.capturedFrameId ? s.stills[media.capturedFrameId] : undefined)
   useEffect(() => {
     let alive = true
     if (!media || !folder) {
@@ -14,13 +16,13 @@ export function useMediaUrl(media: MediaItem | null): string | null {
       return
     }
     setUrl(null)
-    void projectFileUrl(folder, media.workingFile ?? media.externalPath ?? media.sourceFile, mimeForMedia(media.workingFile ?? media.name)).then((u) => {
+    void (media.capturedFrameId ? ensureCapture(media.capturedFrameId) : Promise.resolve()).then(() => projectFileUrl(folder, media.workingFile ?? media.externalPath ?? media.sourceFile, mimeForMedia(media.workingFile ?? media.name))).then((u) => {
       if (alive) setUrl(u)
     }).catch(() => { if (alive) setUrl(null) })
     return () => {
       alive = false
     }
-  }, [media?.id, media?.externalPath, media?.workingFile, folder])
+  }, [media?.id, media?.externalPath, media?.workingFile, capturedStill?.path, folder])
   return url
 }
 

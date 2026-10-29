@@ -392,3 +392,11 @@ ipcMain.handle('media:reveal', async (_e, folder: string, id: string) => {
   if (!media) throw new Error('Media not found. Save the project first.')
   shell.showItemInFolder(await resolveReadablePath(folder, media.externalPath ?? media.sourceFile))
 })
+
+ipcMain.handle('media:materializeCapture', async (_e, folder:string, frameId:string, source:string) => {
+  if(!/^[a-zA-Z0-9_-]+$/.test(frameId)) throw new Error('Invalid frame ID')
+  const readable=await resolveReadablePath(folder,source)
+  const target=guardPath(folder,`media/captures/${frameId}.png`)
+  await mkdir(join(folder,'media','captures'),{recursive:true})
+  await copyFile(readable,target)
+})

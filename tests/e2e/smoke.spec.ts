@@ -145,7 +145,7 @@ test('legacy prompt data survives project serialization', async () => {
   const text = await page.evaluate(() => {
     const s = (window as unknown as { __sbr: { store: any } }).__sbr.store.getState()
     const first = s.orderedFrames()[0]
-    s.setFrameLabel(first.id, 'HERO ENTERS')
+    s.setFrameLabel(first.id, '仓库外景 英树水绷带')
     s.mutate('legacy data', (doc: any) => { doc.frames[0].prompt = { text: 'wide shot, hero enters, cinematic still --ar 1:1 --style raw', profileId: 'midjourney', model: 'template', generatedAt: '2026-07-19T00:00:00.000Z' } })
     const json = JSON.stringify((window as unknown as { __sbr: { store: any } }).__sbr.store.getState().doc)
     if (!s.loadFromJson(s.projectFolder, json)) throw new Error('Could not reload legacy data')
