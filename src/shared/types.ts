@@ -112,7 +112,7 @@ export interface Project {
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 6
+export const PROJECT_VERSION = 7
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2

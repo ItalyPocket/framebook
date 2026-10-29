@@ -45,7 +45,7 @@ function createWindow(): void {
     minWidth: 1100,
     minHeight: 700,
     title: '帧册 / Framebook',
-    backgroundColor: '#f7f8fa',
+    backgroundColor: '#f4f5f2',
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -71,8 +71,8 @@ app.whenReady().then(() => {
   app.setAboutPanelOptions({
     applicationName: '帧册 / Framebook',
     applicationVersion: app.getVersion(),
-    credits: 'Created by Sam Wasserman — wassermanproductions.com · wasserman.ai',
-    copyright: 'Apache-2.0 — keep this credit when using or forking.'
+    credits: 'Storyboard Reference Studio · Sam Wasserman · wassermanproductions.com',
+    copyright: 'Apache-2.0'
   })
   setupWorkspace()
   setupPreviews()

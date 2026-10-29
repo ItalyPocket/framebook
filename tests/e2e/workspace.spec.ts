@@ -112,7 +112,7 @@ test('project library, recovery, media folders, duration and exact export previe
       await page
         .locator('.workspace-page.active')
         .evaluate((element) => getComputedStyle(element).transitionDuration)
-    ).toContain('0.48s')
+    ).toContain('0.28s')
     await page.screenshot({ animations: 'disabled', path: join(outputs, 'settings.png') })
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).fill('10')
     await page.getByRole('spinbutton', { name: '自动保存间隔（秒，至少 10 秒）' }).blur()

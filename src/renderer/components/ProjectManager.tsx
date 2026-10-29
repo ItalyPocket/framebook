@@ -1,3 +1,4 @@
+import { SearchControl } from './SearchControl'
 import { useEffect, useState } from 'react'
 import { parseProject } from '@shared/schema'
 import { t } from '@shared/i18n'
@@ -65,7 +66,55 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
           <div className="settings-grid">
             <section>
               <h3>{t('Appearance and motion')}</h3>
-              <label className="field">{t('Motion style')}<select value={value.motionStyle} onChange={event => change({motionStyle: event.target.value as 'standard' | 'cinematic'})}><option value="standard">{t('Standard · 800ms')}</option><option value="cinematic">{t('Cinematic · 1200ms')}</option></select></label>
+              <label className="field">
+                {t('Motion style')}
+                <select
+                  value={value.motionStyle}
+                  onChange={(event) =>
+                    change({ motionStyle: event.target.value as 'standard' | 'cinematic' })
+                  }
+                >
+                  <option value="standard">{t('Standard · 800ms')}</option>
+                  <option value="cinematic">{t('Cinematic · 1200ms')}</option>
+                </select>
+              </label>
+              <label className="field">
+                {t('Effect scheme')}
+                <select
+                  value={value.effectScheme}
+                  onChange={(event) =>
+                    change({ effectScheme: event.target.value as AppSettings['effectScheme'] })
+                  }
+                >
+                  <option value="unified">{t('Unified')}</option>
+                  <option value="workspace">{t('Per workspace')}</option>
+                </select>
+              </label>
+              <label className="field">
+                {t('Launch intro')}
+                <select
+                  value={value.introMode}
+                  onChange={(event) =>
+                    change({ introMode: event.target.value as AppSettings['introMode'] })
+                  }
+                >
+                  <option value="off">{t('Off')}</option>
+                  <option value="daily">{t('First launch each day')}</option>
+                  <option value="always">{t('Every launch')}</option>
+                </select>
+              </label>
+              <label className="field">
+                {t('Intro duration')}
+                <select
+                  value={value.introDuration}
+                  onChange={(event) =>
+                    change({ introDuration: event.target.value as AppSettings['introDuration'] })
+                  }
+                >
+                  <option value="short">{t('Short · 800ms')}</option>
+                  <option value="full">{t('Full · 3 seconds')}</option>
+                </select>
+              </label>
               {check('simplifyAnimations', 'Simplify animations')}
               <p className="hint">{t('Use short fades instead of geometric motion.')}</p>
               <h3>{t('Projects and saving')}</h3>
@@ -202,7 +251,13 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
   )
 }
 
-export function ProjectLibrary({ onClose }: { onClose(): void }): JSX.Element {
+export function ProjectLibrary({
+  onClose,
+  searchInitiallyOpen = false
+}: {
+  onClose(): void
+  searchInitiallyOpen?: boolean
+}): JSX.Element {
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
@@ -278,12 +333,11 @@ export function ProjectLibrary({ onClose }: { onClose(): void }): JSX.Element {
           {t('Import existing project')}
         </button>
       </div>
-      <input
-        className="library-search"
-        aria-label={t('Search projects')}
-        placeholder={t('Search projects')}
+      <SearchControl
+        initiallyOpen={searchInitiallyOpen}
+        label="Search projects"
         value={search}
-        onChange={(event) => setSearch(event.target.value)}
+        onChange={setSearch}
       />
       <div className="project-library">
         {projects

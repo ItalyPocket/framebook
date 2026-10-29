@@ -1,9 +1,23 @@
 import type { ReactNode } from 'react'
 import { t } from '@shared/i18n'
 
-export type ActionIcon = 'undo' | 'redo' | 'library' | 'save' | 'settings' | 'help' | 'language'
+export type ActionIcon =
+  | 'undo'
+  | 'redo'
+  | 'library'
+  | 'save'
+  | 'settings'
+  | 'help'
+  | 'language'
+  | 'search'
 export function ActionSymbol({ icon }: { icon: ActionIcon }): JSX.Element {
   const paths: Record<ActionIcon, ReactNode> = {
+    search: (
+      <>
+        <circle cx="10" cy="10" r="6.5" />
+        <path d="m15 15 6 6" />
+      </>
+    ),
     undo: (
       <>
         <path d="M10 8H5v-5M5 8c3-5 12-3 12 3v5" />

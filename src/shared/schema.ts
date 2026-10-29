@@ -21,7 +21,7 @@ export function createProject(name: string): Project {
     id: newId('proj'),
     name,
     media: [],
-    production: { days: [], takes: [] },
+    production: { groups: [], columns: [], takes: [] },
     mediaFolders: [],
     frames: [],
     storyboard: { title: name, description: '', columns: defaultStoryColumns(), shots: [] },

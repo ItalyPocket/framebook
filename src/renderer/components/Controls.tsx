@@ -164,11 +164,13 @@ export function Dialog({
   title,
   children,
   onClose,
-  wide = false
+  wide = false,
+  modeless = false
 }: {
   title: string
   children: ReactNode
   onClose(): void
+  modeless?: boolean
   wide?: boolean
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
@@ -177,10 +179,15 @@ export function Dialog({
   const id = useId()
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
-    const root = document.querySelector<HTMLElement>('#root')
+    const root = modeless ? null : document.querySelector<HTMLElement>('#root')
     if (root) root.inert = true
     ref.current?.querySelector<HTMLElement>('input, textarea, select, button')?.focus()
     const key = (event: KeyboardEvent): void => {
+      if (
+        event.key === 'Escape' &&
+        (event.target as HTMLElement).closest('.search-control.expanded')
+      )
+        return
       if (
         Array.from(document.querySelectorAll('[role=dialog]'))
           .filter((element) => !element.closest('.dialog-exit'))
@@ -192,7 +199,7 @@ export function Dialog({
         event.stopPropagation()
         closeRef.current()
       }
-      if (event.key === 'Tab') {
+      if (event.key === 'Tab' && !modeless) {
         const nodes = [
           ...(ref.current?.querySelectorAll<HTMLElement>(
             'button:not(:disabled), input:not(:disabled), textarea, select, [tabindex="0"]'
@@ -212,7 +219,7 @@ export function Dialog({
     document.addEventListener('keydown', key, true)
     return () => {
       if (root)
-        root.inert = !!Array.from(document.querySelectorAll('[role=dialog]')).find(
+        root.inert = !!Array.from(document.querySelectorAll('[role=dialog][aria-modal=true]')).find(
           (element) => element !== ref.current && !element.closest('.dialog-exit')
         )
       document.removeEventListener('keydown', key, true)
@@ -234,7 +241,7 @@ export function Dialog({
   }, [])
   return createPortal(
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop ${modeless ? 'modeless-backdrop' : ''}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -243,7 +250,7 @@ export function Dialog({
         ref={ref}
         className={`modal ${wide ? 'wide-dialog' : ''}`}
         role="dialog"
-        aria-modal="true"
+        aria-modal={!modeless}
         aria-labelledby={id}
       >
         <header className="dialog-header">

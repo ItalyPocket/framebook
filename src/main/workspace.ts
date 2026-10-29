@@ -38,6 +38,9 @@ export async function getSettings(): Promise<AppSettings> {
     autosave: true,
     autosaveSeconds: 60,
     backupLimit: 5,
+    effectScheme: 'workspace',
+    introMode: 'always',
+    introDuration: 'short',
     motionStyle: 'standard',
     simplifyAnimations: false,
     copyMedia: true
@@ -45,7 +48,11 @@ export async function getSettings(): Promise<AppSettings> {
   const stored = await readFile(join(app.getPath('userData'), 'settings.json'), 'utf8')
     .then(JSON.parse)
     .catch(() => ({}))
-  settingsCache = { ...defaults, ...stored }
+  settingsCache = {
+    ...defaults,
+    ...stored,
+    effectScheme: stored.effectScheme ?? (Object.keys(stored).length ? 'unified' : 'workspace')
+  }
   return settingsCache!
 }
 async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> {

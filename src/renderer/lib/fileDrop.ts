@@ -35,7 +35,13 @@ export function useFileDrop(): void {
       clear()
       const state = useStore.getState()
       const folder = state.projectFolder
-      if (!folder || !zone) return
+      if (
+        !folder ||
+        !zone ||
+        ((state.workspace === 'planning' || state.workspace === 'callsheet') &&
+          !zone.dataset.imageShot)
+      )
+        return
       const workspace = state.workspace
       const shotId = zone.dataset.imageShot
       const columnId = zone.dataset.imageColumn
@@ -48,7 +54,7 @@ export function useFileDrop(): void {
             const path = window.sbr.pathForFile(file)
             if (!path) throw new Error(t('Could not open project'))
             if (
-              (workspace === 'storyboard' || workspace === 'gallery') &&
+              (workspace === 'storyboard' || workspace === 'gallery' || workspace === 'planning') &&
               !/\.(png|jpe?g|heic|heif|webp|tiff?|bmp|gif)$/i.test(path)
             ) {
               throw new Error(t('Drop images here; import videos in Capture.'))
@@ -57,7 +63,7 @@ export function useFileDrop(): void {
             if (useStore.getState().projectFolder !== folder) break
             const media = useStore.getState().addMedia({ ...imported, folderId })
             const current = useStore.getState()
-            if (workspace === 'storyboard' && shotId && columnId) {
+            if (shotId && columnId) {
               current.addStoryImage(shotId, columnId, createFrame(media.id, 0, 0, media.name))
             } else if (workspace === 'gallery' || workspace === 'storyboard') {
               const frame = current.addFrame(media.id, 0, media.name)

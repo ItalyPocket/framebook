@@ -84,7 +84,7 @@ test('migrates a v1 project.json to v2 without throwing', async () => {
     }
   })
   expect(migrated.ok).toBe(true)
-  expect(migrated.version).toBe(6)
+  expect(migrated.version).toBe(7)
   expect(migrated.durationS).toBe(2)
   expect(migrated.hasShot).toBe(true)
   expect(migrated.annotations).toBe(0)

@@ -60,14 +60,12 @@ export function ColumnDialog({
               type === 'image' || type === 'multi' ? [] : type === 'checkbox' ? false : ''
       })
     } else
-      useStore
-        .getState()
-        .addStoryColumn({
-          id: newId('col'),
-          ...next,
-          width: type === 'image' ? 320 : 180,
-          visible: true
-        })
+      useStore.getState().addStoryColumn({
+        id: newId('col'),
+        ...next,
+        width: type === 'image' ? 320 : 180,
+        visible: true
+      })
     onClose()
   }
   return (
@@ -135,10 +133,12 @@ export function ColumnDialog({
 function ChoiceField({
   column,
   value,
-  update
+  update,
+  onOptions
 }: {
   column: StoryColumn
   value: StoryCell
+  onOptions?(options: string[]): void
   update(value: StoryCell): void
 }): JSX.Element {
   const [query, setQuery] = useState('')
@@ -184,9 +184,11 @@ function ChoiceField({
         <button
           onClick={() => {
             const option = query.trim()
-            useStore
-              .getState()
-              .updateStoryColumn(column.id, { options: [...column.options, option] })
+            if (onOptions) onOptions([...column.options, option])
+            else
+              useStore
+                .getState()
+                .updateStoryColumn(column.id, { options: [...column.options, option] })
             choose(option)
             setQuery('')
           }}
@@ -203,8 +205,12 @@ export function StoryField({
   shotId,
   column,
   value,
-  rowNumber
+  rowNumber,
+  onUpdate,
+  onOptions
 }: {
+  onOptions?(options: string[]): void
+  onUpdate?(value: StoryCell): void
   rowNumber?: number
   shotId: string
   column: StoryColumn
@@ -213,6 +219,10 @@ export function StoryField({
   const [expanded, setExpanded] = useState(false)
   const [calculating, setCalculating] = useState(false)
   const update = (next: StoryCell): void => {
+    if (onUpdate) {
+      onUpdate(next)
+      return
+    }
     if (column.id === 'startS' || column.id === 'endS') {
       useStore.getState().mutate(`field:${shotId}:${column.id}`, (doc) => {
         const shot = doc.storyboard.shots.find((item) => item.id === shotId)
@@ -232,7 +242,7 @@ export function StoryField({
       />
     )
   if (column.type === 'single' || column.type === 'multi')
-    return <ChoiceField column={column} value={value} update={update} />
+    return <ChoiceField column={column} value={value} update={update} onOptions={onOptions} />
   const text = typeof value === 'number' || typeof value === 'string' ? value : ''
   if (column.type === 'text')
     return (

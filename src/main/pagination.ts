@@ -3,6 +3,7 @@ export function paginateStoryboard(pageHeight: number): void {
   const heading = document.querySelector('header')!
   const rows = Array.from(source.tBodies[0]!.rows)
   const body = document.createElement('main')
+  let activeGroup: HTMLTableRowElement | null = null
   const makePage = (
     first: boolean
   ): { page: HTMLElement; table: HTMLTableElement; tbody: HTMLTableSectionElement } => {
@@ -14,6 +15,7 @@ export function paginateStoryboard(pageHeight: number): void {
     for (const child of Array.from(source.children))
       if (child.tagName !== 'TBODY') table.append(child.cloneNode(true))
     const tbody = document.createElement('tbody')
+    if (!first && activeGroup) tbody.append(activeGroup.cloneNode(true))
     table.append(tbody)
     page.append(table)
     body.append(page)
@@ -25,6 +27,24 @@ export function paginateStoryboard(pageHeight: number): void {
     current.table.getBoundingClientRect().bottom <=
     current.page.getBoundingClientRect().top + pageHeight - 24
   for (const original of rows) {
+    if (original.classList.contains('group-heading')) {
+      const header = original.cloneNode(true) as HTMLTableRowElement
+      current.tbody.append(header)
+      if (
+        !fits() ||
+        current.page.getBoundingClientRect().top +
+          pageHeight -
+          current.table.getBoundingClientRect().bottom <
+          70
+      ) {
+        header.remove()
+        activeGroup = null
+        current = makePage(false)
+        current.tbody.append(header)
+      }
+      activeGroup = header
+      continue
+    }
     let remaining = Array.from(original.cells).map((cell) => {
       const content = document.createElement('div')
       content.innerHTML = cell.innerHTML
@@ -54,7 +74,9 @@ export function paginateStoryboard(pageHeight: number): void {
       current.tbody.append(row)
       if (fits()) break
       row.remove()
-      const hadRows = current.tbody.rows.length > 0
+      const hadRows = Array.from(current.tbody.rows).some(
+        (row) => !row.classList.contains('group-heading')
+      )
       const fragment = document.createElement('tr')
       const next: HTMLDivElement[] = []
       for (const cell of remaining) {

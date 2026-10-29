@@ -48,10 +48,10 @@ interface SbrState {
   /** Selected board frame (opens in the inspector). */
   selectedFrameId: string | null
   seekTime: number | null
-  workspace: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'shooting'
+  workspace: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet'
   history: Project[]
   future: Project[]
-  setWorkspace(value: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'shooting'): void
+  setWorkspace(value: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet'): void
   undo(): void
   redo(): void
   sortGallery(): void

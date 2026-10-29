@@ -1,3 +1,4 @@
+import { SearchControl } from '../components/SearchControl'
 import { t } from '@shared/i18n'
 /**
  * Left rail: the media bin. Import (file dialog) + Paste (clipboard PNG),
@@ -183,6 +184,22 @@ export function MediaBin(): JSX.Element {
     }
   }, [folder, addMedia, toast])
 
+  useEffect(() => {
+    const paste = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'v' &&
+        !target.closest('input,textarea,[contenteditable="true"]')
+      ) {
+        event.preventDefault()
+        void onPaste()
+      }
+    }
+    window.addEventListener('keydown', paste)
+    return () => window.removeEventListener('keydown', paste)
+  }, [onPaste])
+
   const folders = doc?.mediaFolders ?? []
   const current = folders.find((item) => item.id === currentFolder)
   const trail: typeof folders = []
@@ -203,11 +220,19 @@ export function MediaBin(): JSX.Element {
   return (
     <div className="bin panel" data-import-folder={currentFolder ?? ''}>
       <div className="bin-actions">
-        <button className="btn small" onClick={onImport}>
-          {t('＋ Import')}
-        </button>
-        <button className="btn small" onClick={onPaste}>
-          {t('⧉ Paste')}
+        <button className="btn primary media-import" onClick={onImport}>
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
+            <path d="M12 3v12m-5-5 5 5 5-5M4 15v6h16v-6" />
+          </svg>
+          {t('Import')}
         </button>
       </div>
       <div className="media-filters">
@@ -224,13 +249,7 @@ export function MediaBin(): JSX.Element {
           {grid ? '☷' : '▦'}
         </button>
       </div>
-      <input
-        className="media-search"
-        aria-label={t('Search media')}
-        placeholder={t('Search media')}
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <SearchControl label="Search media" value={search} onChange={setSearch} />
       <div
         className="media-breadcrumb"
         onDragOver={(event) => event.preventDefault()}
@@ -250,8 +269,22 @@ export function MediaBin(): JSX.Element {
         ))}
       </div>
       <div className="media-folder-tools">
-        <button className="text-button" onClick={() => setFolderDialog({ name: '' })}>
-          {t('New folder')}
+        <button
+          className="icon-button"
+          title={t('New folder')}
+          aria-label={t('New folder')}
+          onClick={() => setFolderDialog({ name: '' })}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <path d="M3 6h7l2 3h9v12H3zM15 11v7m-3-3h6" />
+          </svg>
         </button>
         {current && (
           <>

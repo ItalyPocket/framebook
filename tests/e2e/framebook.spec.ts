@@ -67,7 +67,7 @@ test('gallery, editable storyboard table, image cells, save and exports', async 
       return { csv, pdf, imageCount: images.length, version: current.doc.version, cells: savedShot.cells }
     })
     expect(result.imageCount).toBe(3)
-    expect(result.version).toBe(6)
+    expect(result.version).toBe(7)
     expect(result.cells.description).toBe('主角走入画面，镜头缓慢推进。')
     expect(result.csv.ok, result.csv.error).toBe(true)
     expect(result.pdf.ok, result.pdf.error).toBe(true)

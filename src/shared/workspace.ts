@@ -9,6 +9,9 @@ export interface AppSettings {
   autosave: boolean
   autosaveSeconds: number
   backupLimit: number
+  effectScheme: 'unified' | 'workspace'
+  introMode: 'off' | 'daily' | 'always'
+  introDuration: 'short' | 'full'
   motionStyle: 'standard' | 'cinematic'
   simplifyAnimations: boolean
   copyMedia: boolean

@@ -1,3 +1,4 @@
+import { StoryImages } from '../components/StoryImages'
 import type { ExportPreview } from '@shared/workspace'
 import { ExportPreviewDialog } from '../components/ExportPreview'
 import { useRef, useState } from 'react'
@@ -165,68 +166,17 @@ export function StoryboardEditor(): JSX.Element | null {
     setChosen([])
   }
   const imageCell = (shotId: string, column: StoryColumn, images: StoryImage[]): JSX.Element => (
-    <div className="story-cell-images" data-image-shot={shotId} data-image-column={column.id}>
-      {images.map((image, index) => (
-        <div key={image.frame.id} className="story-cell-image">
-          <button
-            className="image-preview-button"
-            aria-label={t('Preview image')}
-            onClick={() => setPreview(image)}
-          >
-            <StillImage frame={image.frame} />
-          </button>
-          <div className="image-tools contextual">
-            <button
-              className="icon-button"
-              aria-label={t('Move left')}
-              disabled={!index}
-              onClick={() => {
-                const next = [...images]
-                ;[next[index - 1], next[index]] = [next[index]!, next[index - 1]!]
-                useStore.getState().updateStoryCell(shotId, column.id, next)
-              }}
-            >
-              ←
-            </button>
-            <button
-              className="icon-button"
-              aria-label={t('Move right')}
-              disabled={index === images.length - 1}
-              onClick={() => {
-                const next = [...images]
-                ;[next[index + 1], next[index]] = [next[index]!, next[index + 1]!]
-                useStore.getState().updateStoryCell(shotId, column.id, next)
-              }}
-            >
-              →
-            </button>
-            <button
-              className="icon-button danger"
-              aria-label={t('Remove image')}
-              onClick={() =>
-                useStore.getState().updateStoryCell(
-                  shotId,
-                  column.id,
-                  images.filter((_, i) => i !== index)
-                )
-              }
-            >
-              ×
-            </button>
-          </div>
-          <span className="image-time">{image.frame.timeS.toFixed(2)} s</span>
-        </div>
-      ))}
-      <div className={`story-image-add ${images.length ? 'contextual' : 'empty-image'}`}>
-        <Menu label={t('Add image')} className="image-add-trigger">
-          <MenuItem onClick={() => showPicker(shotId, column.id)}>{t('Add from gallery')}</MenuItem>
-          <MenuItem onClick={() => void importToCell(shotId, column.id)}>
-            {t('Import image')}
-          </MenuItem>
-        </Menu>
-      </div>
-    </div>
+    <StoryImages
+      shotId={shotId}
+      column={column}
+      images={images}
+      onChange={(images) => useStore.getState().updateStoryCell(shotId, column.id, images)}
+      onPreview={setPreview}
+      onGallery={() => showPicker(shotId, column.id)}
+      onImport={() => void importToCell(shotId, column.id)}
+    />
   )
+
   return (
     <section className={`storyboard-workspace density-${density}`}>
       <ArtComposition />

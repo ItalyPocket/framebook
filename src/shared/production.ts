@@ -1,3 +1,5 @@
+import type { StoryColumn, StoryCell } from './types'
+
 export interface ProductionItem {
   id: string
   shotId: string | null
@@ -9,6 +11,7 @@ export interface ProductionItem {
   cast: string
   equipment: string
   notes: string
+  cells?: Record<string, StoryCell>
   status: 'pending' | 'shooting' | 'done' | 'retake'
 }
 export interface ShootDay {
@@ -40,16 +43,33 @@ export interface Take {
   mediaIds: string[]
 }
 export interface Production {
-  days: ShootDay[]
+  groups: ShootDay[]
+  columns: StoryColumn[]
   takes: Take[]
 }
 export function parseProduction(value: unknown): Production {
-  if (!value || typeof value !== 'object') return { days: [], takes: [] }
-  const input = value as Production
+  if (!value || typeof value !== 'object') return { groups: [], columns: [], takes: [] }
+  const input = value as Production & { days?: ShootDay[] }
+  const groups = input.groups ?? input.days
   const text = (v: unknown): string => (typeof v === 'string' ? v : '')
   return {
-    days: Array.isArray(input.days)
-      ? input.days
+    columns: Array.isArray(input.columns)
+      ? input.columns
+          .filter(
+            (c) =>
+              c &&
+              typeof c.id === 'string' &&
+              ['text', 'number', 'single', 'multi', 'date', 'checkbox', 'image'].includes(c.type)
+          )
+          .map((c) => ({
+            ...c,
+            width: Math.max(40, Number(c.width) || 160),
+            name: text(c.name),
+            options: Array.isArray(c.options) ? c.options.filter((o) => typeof o === 'string') : []
+          }))
+      : [],
+    groups: Array.isArray(groups)
+      ? groups
           .filter((d) => d && typeof d.id === 'string')
           .map((d) => ({
             id: d.id,
@@ -79,6 +99,7 @@ export function parseProduction(value: unknown): Production {
                     cast: text(i.cast),
                     equipment: text(i.equipment),
                     notes: text(i.notes),
+                    cells: i.cells && typeof i.cells === 'object' ? i.cells : {},
                     status: ['pending', 'shooting', 'done', 'retake'].includes(i.status)
                       ? i.status
                       : 'pending'
@@ -105,21 +126,4 @@ export function parseProduction(value: unknown): Production {
           }))
       : []
   }
-}
-export function schedule(items: ProductionItem[], start: string): { start: number; end: number }[] {
-  const [h, m] = start.split(':').map(Number)
-  let cursor = (h || 0) * 60 + (m || 0)
-  return items.map((item) => {
-    const begin = cursor
-    cursor += item.minutes + item.preparation
-    return { start: begin, end: cursor }
-  })
-}
-export function clock(minutes: number): string {
-  return (
-    `${Math.floor(minutes / 60) % 24}`.padStart(2, '0') +
-    ':' +
-    `${minutes % 60}`.padStart(2, '0') +
-    (minutes >= 1440 ? ' +1' : '')
-  )
 }

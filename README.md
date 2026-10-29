@@ -1,44 +1,24 @@
 # 帧册 / Framebook
 
-为拉片分析设计的 macOS 静帧与分镜本工具。基于 Sam Wasserman 的 [Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio)，保留 Apache-2.0 许可与原作者署名。
+面向 Apple Silicon Mac 的静帧截取、拉片分析、分镜本与拍摄计划工具。
 
-## 界面
+## 使用
 
-采用冷白、黑色与系统蓝的合成先锋视觉：几何拼贴、网点与轨迹线分层构成，悬停按钮与引导线联动。支持系统“减少动态效果”。分镜表格提供固定表头、拖动排序、列宽调整、三档行高和多图预览；行、列、图片辅助操作在悬停或键盘聚焦时显示。
+从[发布页](https://github.com/ItalyPocket/framebook/releases)下载 DMG。项目库管理本机项目；右上角搜索图标展开搜索。左上角项目名可直接重命名。
 
-工作台的素材与设置面板可收起，画廊缩略图大小可调。视图偏好独立保存在本机，不改变项目内容。
+- 工作台：导入或拖入 MP4、MOV、图片，逐帧查看并截取静帧。
+- 画廊：调整静帧顺序、批量命名及导出。
+- 分镜本：一镜多图、自定义字段与选项，支持横竖版 PDF 和 CSV 预览导出。
+- 拍摄计划：按场景、日期时间、地点分组安排镜头，独立设置显示列；分镜字段双向同步，负责人及拍摄耗时独立填写。
+- 拍摄通告：单独编辑各组集合、人员、器材和紧急联系信息。
 
-![欢迎页](docs/images/framebook-welcome.png)
+设置管理项目目录、自动保存、恢复副本、素材内嵌、导出目录、开屏和动画。默认每 60 秒自动保存，保留 5 份数据恢复副本。项目包默认包含导入素材，也可使用外部引用并通过 ZIP 打包分享。
 
-## 2.3.0 项目与导出
+版本 7 兼容旧项目，迁移拍摄日到计划分组并保留旧条次数据。界面提供中文和英文，支持系统减少动态效果。
 
-右上角独立图标打开项目库及设置；设置包含常规设置、项目设置。点击左上角项目名可原位重命名。
+## 开发
 
-项目默认保存在应用数据目录的 `Projects`，可在设置中更改。自动保存默认开启，每 60 秒保存实际项目；默认保留 5 份只含数据的恢复副本，数量及间隔可调整。旧项目通过项目库的“导入已有项目”登记。
-
-默认将视频和图片存入 `.sbref` 项目包。关闭“复制素材”后，新素材使用外部引用；项目设置中的 ZIP 打包会收集外部引用，生成可移动副本。素材库支持分类、文件夹、搜索和多选归类。
-
-分镜本、静帧分别配置导出目录及是否每次询问。导出先预览；PDF 支持 A4 横竖版，确认后导出同一份预览文件。超高镜头按续行分页，保持全部图片及文字。
-
-## 功能
-
-- 简体中文、English、跟随系统，切换后保存偏好。
-- 截帧工作台：导入 MP4 / MOV，逐帧浏览、手动截帧、场景检测、按间隔或数量批量截帧。
-- 静帧画廊：默认按素材导入顺序与源时间排序，支持拖动或按钮重排、恢复时间排序、多选、按当前顺序导出 `001.png` / `001.jpg`，附源时间清单。
-- 静帧画廊和分镜表格支持 PNG、JPG、HEIC/HEIF、WebP、TIFF、BMP、GIF 图片导入。导入的 HEIF 会生成 PNG 预览副本，源文件保留在项目中。
-- 独立分镜本采用表格：默认镜号、画面、内容、声音、时长、景别和运镜；一个镜头可在画面单元格中放入多张图。表头可改名、增删、排序和选择字段类型。
-- 常用字段含景别、焦段、机位、运镜和转场，并带有可自定义的选项；支持文本、数字、单选、多选、日期、勾选和图片。
-- 时长可直接填写，也可打开入点、出点计算面板确认时间差；左下角显示镜头数及累计时长。
-- 表头模板保存于本机，可应用、重命名和删除。PDF 与 CSV 按当前可见列和顺序导出。
-- 镜头复制、重排、删除、撤销和重做。旧项目字段和图片自动迁移至新版表格。
-- 横竖屏保持原比例，支持 9:16、3:4 等裁切。分镜图片保存独立快照，删除画廊静帧不会影响分镜本。
-- 保留上游画面标注、演示、动画视频及可选 AI 提示词功能。基础工作流离线可用，AI 生成需要另行配置服务。
-
-![分镜本](docs/images/framebook-storyboard.png)
-
-## 运行与打包
-
-面向 Apple Silicon（M 系列）Mac。开发需要 Node.js 22+。
+需要 Node.js 22+。
 
 ```sh
 npm ci
@@ -52,20 +32,8 @@ npm run build
 npm run package
 ```
 
-打包产物位于 `release/`，自带 ffmpeg，无需另装。当前构建没有 Apple Developer ID 签名和公证。
+安装包输出到 `release/`，自带 ffmpeg。当前构建没有 Apple Developer ID 签名和公证。端到端验证需要可启动 Electron 的 macOS 桌面环境，截帧测试还需要 PATH 中的 ffmpeg、ffprobe。
 
-测试使用真实 Electron 和 ffmpeg；测试环境的 PATH 需要有 `ffmpeg`、`ffprobe`。
+## 来源与许可
 
-```sh
-npm run e2e
-```
-
-## 项目与保存
-
-项目使用 `.sbref` 项目包，包含 `project.json`、内嵌素材和缓存；在 Finder 中显示为单个项目。默认随项目复制素材，使用外部引用时可通过 ZIP 打包收集素材。⌘S 保存后显示结果；自动保存间隔和数据恢复副本数量可设置。版本 5 兼容版本 1–4 项目，保留原有分镜字段、自定义选项和静帧。
-
-批量截帧单次上限 300 张。长视频或高分辨率素材的处理速度取决于设备。MOV 是容器，具体编码的预览能力取决于 Electron；本版测试覆盖 H.264 的 MP4 / MOV。HDR 色彩管理和专业时间码工作流不属于本版功能。
-
-## 致谢
-
-原作由 **Sam Wasserman** 创建：[wassermanproductions.com](https://wassermanproductions.com) · [wasserman.ai](https://wasserman.ai)。帧册的中文工作流、独立分镜编辑与白蓝视觉改版由 ItalyPocket 定制。完整许可见 [LICENSE](LICENSE)，原作声明见 [NOTICE](NOTICE)。
+原作 [Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio)：Sam Wasserman ([wassermanproductions.com](https://wassermanproductions.com))。帧册改版：ItalyPocket。完整许可与声明见 [LICENSE](LICENSE)、[NOTICE](NOTICE)。

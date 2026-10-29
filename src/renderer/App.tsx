@@ -5,6 +5,7 @@ import { t } from '@shared/i18n'
  * global keyboard map, autosave, credits.
  */
 
+import { LaunchIntro } from './components/LaunchIntro'
 import { useSettings } from './settings'
 import { Production } from './panels/Production'
 import { useFileDrop } from './lib/fileDrop'
@@ -41,11 +42,12 @@ function CreditLink({ url, children }: { url: string; children: string }): JSX.E
 export function Credits(): JSX.Element {
   return (
     <div className="credits">
-      {t('Created by Sam Wasserman ·')}{' '}
-      <CreditLink url="https://wassermanproductions.com">wassermanproductions.com</CreditLink> ·{' '}
-      <CreditLink url="https://wasserman.ai">wasserman.ai</CreditLink>
-      <br />
-      {t('Open source under Apache-2.0 — keep this credit when using or forking.')}
+      Sam Wasserman ·{' '}
+      <CreditLink url="https://wassermanproductions.com">Storyboard Reference Studio</CreditLink>
+      {' · '}
+      <CreditLink url="https://github.com/ItalyPocket/framebook/blob/main/LICENSE">
+        Apache-2.0
+      </CreditLink>
     </div>
   )
 }
@@ -79,7 +81,6 @@ function Welcome({ openLibrary }: { openLibrary(): void }): JSX.Element {
           {t('? Quick start')}
         </button>
       </div>
-      <Credits />
     </div>
   )
 }
@@ -241,10 +242,15 @@ function useKeyboard(): void {
 
 export function App(): JSX.Element {
   useFileDrop()
+  const [searchLibrary, setSearchLibrary] = useState(false)
   const [panel, setPanel] = useState<'library' | 'settings' | null>(null)
   useEffect(() => {
     void useSettings.getState().load()
   }, [])
+  const scheme = useSettings((state) => state.value?.effectScheme ?? 'workspace')
+  useEffect(() => {
+    document.documentElement.dataset.effectScheme = scheme
+  }, [scheme])
   const motionStyle = useSettings((state) => state.value?.motionStyle ?? 'standard')
   useEffect(() => {
     document.documentElement.dataset.motionStyle = motionStyle
@@ -301,7 +307,22 @@ export function App(): JSX.Element {
 
   const overlays = (
     <Fragment key="application-overlays">
-      {panel === 'library' && <ProjectLibrary onClose={() => setPanel(null)} />}
+      <LaunchIntro />
+      {panel && (
+        <div
+          key={panel}
+          className="workspace-wipe overlay-wipe"
+          data-title={panel === 'settings' ? 'SETTINGS' : 'PROJECT LIBRARY'}
+          aria-hidden="true"
+        >
+          <i />
+          <i />
+          <i />
+        </div>
+      )}
+      {panel === 'library' && (
+        <ProjectLibrary searchInitiallyOpen={searchLibrary} onClose={() => setPanel(null)} />
+      )}
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
     </Fragment>
   )
@@ -345,14 +366,29 @@ export function App(): JSX.Element {
           disabled={!canRedo}
           onClick={() => useStore.getState().redo()}
         />
-        <TopAction icon="library" label="Project library" onClick={() => setPanel('library')} />
+        <TopAction
+          icon="library"
+          label="Project library"
+          onClick={() => {
+            setSearchLibrary(false)
+            setPanel('library')
+          }}
+        />
+        <TopAction
+          icon="search"
+          label="Search projects"
+          onClick={() => {
+            setSearchLibrary(true)
+            setPanel('library')
+          }}
+        />
         <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
         <LanguageSelect />
         <TopAction icon="save" label="Save" onClick={onSave} />
         <TopAction icon="help" label="Help" onClick={() => useStore.getState().setHelpOpen(true)} />
       </div>
       <nav className="workspace-nav">
-        {(['capture', 'gallery', 'storyboard', 'planning', 'shooting'] as const).map(
+        {(['capture', 'gallery', 'storyboard', 'planning', 'callsheet'] as const).map(
           (value, index) => (
             <button
               key={value}
@@ -366,7 +402,7 @@ export function App(): JSX.Element {
                   gallery: 'Frame gallery',
                   storyboard: 'Storyboard editor',
                   planning: 'Shooting plan',
-                  shooting: 'On-set shooting'
+                  callsheet: 'Call sheet'
                 }[value]
               )}
             </button>
@@ -376,7 +412,7 @@ export function App(): JSX.Element {
           FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}
         </span>
       </nav>
-      <div className="workspace-stack" key={doc.id}>
+      <div className="workspace-stack" key={doc.id} data-workspace={workspace}>
         <div
           className={`workspace-page ${workspace === 'capture' ? 'active' : 'inactive'}`}
           aria-hidden={workspace !== 'capture'}
@@ -421,16 +457,30 @@ export function App(): JSX.Element {
         >
           {visited.current.views.has('storyboard') && <StoryboardEditor />}
         </div>
-        {(['planning', 'shooting'] as const).map((view) => (
+        {(['planning', 'callsheet'] as const).map((view) => (
           <div
             key={view}
             className={`workspace-page ${workspace === view ? 'active' : 'inactive'}`}
             aria-hidden={workspace !== view}
           >
-            {visited.current.views.has(view) && <Production shooting={view === 'shooting'} />}
+            {visited.current.views.has(view) && <Production callSheet={view === 'callsheet'} />}
           </div>
         ))}
-        <div key={workspace} className="workspace-wipe" aria-hidden="true">
+        <div
+          key={workspace}
+          className="workspace-wipe"
+          data-scene={workspace}
+          data-title={
+            {
+              capture: 'CAPTURE',
+              gallery: 'GALLERY',
+              storyboard: 'STORYBOARD',
+              planning: 'SHOOTING PLAN',
+              callsheet: 'CALL SHEET'
+            }[workspace]
+          }
+          aria-hidden="true"
+        >
           <i />
           <i />
           <i />

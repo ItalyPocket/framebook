@@ -18,12 +18,14 @@ export interface ExportFrameInput {
 }
 
 export interface StoryboardExportInput {
+  documentLabel?: string
   projectName?: string
   title: string
   description: string
   exportsRoot: string
   columns: StoryColumn[]
   shots: (StoryShot & {
+    groupTitle?: string
     rendered: ExportFrameInput[]
     imageRoles: string[]
     renderedByColumn?: Record<string, ExportFrameInput[]>
