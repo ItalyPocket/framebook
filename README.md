@@ -6,7 +6,7 @@
 
 [Download DMG](https://github.com/ItalyPocket/framebook/releases) · [Report an issue](https://github.com/ItalyPocket/framebook/issues) · [Support the project](docs/SUPPORT.md)
 
-> This page describes the 2.5.0 source. The currently published installer is **2.3.1**, marked as a prerelease. Features and screenshots below may differ from that installer; use the source build for 2.5.0.
+> **Latest release: 2.5.1 · Apple Silicon Mac.** [Download the DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1). Screenshots below were captured in 2.5.0.
 
 ## From reference to shooting plan
 
@@ -45,6 +45,7 @@ Build scene groups around the same shot references. Each group carries its own d
 ## Preview, save and move projects
 
 - Preview storyboard PDF/CSV and still exports before confirming. Storyboard PDF supports landscape and portrait A4.
+- Return Home to replay the intro and resume your saved project.
 - Use the in-app project library, inline project renaming and configurable save/export folders.
 - Autosave defaults to 60 seconds with five data recovery copies; both are configurable.
 - Imports are copied into the `.sbref` project package by default. External references are optional; ZIP sharing collects linked assets into a portable copy.

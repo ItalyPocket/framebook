@@ -40,12 +40,13 @@ let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    show: false,
     width: 1600,
     height: 1000,
     minWidth: 1100,
     minHeight: 700,
     title: '帧册 / Framebook',
-    backgroundColor: '#f4f5f2',
+    backgroundColor: '#1737d1',
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -54,6 +55,8 @@ function createWindow(): void {
       sandbox: false
     }
   })
+
+  mainWindow.once('ready-to-show', () => mainWindow?.show())
 
   if (isDev) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL!)

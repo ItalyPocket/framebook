@@ -1,7 +1,7 @@
 {
   "name": "framebook",
   "productName": "帧册",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Framebook — capture, study and arrange your shots. 帧册：静帧截取与分镜分析。",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",

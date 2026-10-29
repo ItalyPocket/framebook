@@ -6,7 +6,7 @@
 
 [下载安装包](https://github.com/ItalyPocket/framebook/releases) · [反馈问题](https://github.com/ItalyPocket/framebook/issues) · [支持项目](docs/SUPPORT.md)
 
-> 本页介绍 **2.5.0 源码版本**。当前公开安装包为 **2.3.1 预发布版**，功能与下方截图可能不同；体验 2.5.0 请从源码构建。
+> **最新版本：2.5.1 · Apple Silicon Mac。** [下载 DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1)。下方截图摄于 2.5.0。
 
 ## 从参考画面到拍摄计划
 
@@ -45,6 +45,7 @@
 ## 导出、保存与项目移动
 
 - 分镜本 PDF/CSV 与静帧导出前可预览，分镜本 PDF 支持 A4 横版与竖版。
+- 点击主页图标返回欢迎页并重播开屏，可继续已保存的项目。
 - 应用内项目库、项目名直接修改，以及可设置的保存与导出目录。
 - 默认每 60 秒自动保存，保留 5 份数据恢复副本，均可调整。
 - 默认将素材复制进 `.sbref` 项目包；也可使用外部引用，通过 ZIP 分享时收集素材，生成可移动副本。

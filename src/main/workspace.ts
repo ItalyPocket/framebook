@@ -40,7 +40,7 @@ export async function getSettings(): Promise<AppSettings> {
     backupLimit: 5,
     effectScheme: 'workspace',
     introMode: 'always',
-    introDuration: 'short',
+    introDuration: 'full',
     motionStyle: 'standard',
     simplifyAnimations: false,
     copyMedia: true
@@ -51,7 +51,7 @@ export async function getSettings(): Promise<AppSettings> {
   settingsCache = {
     ...defaults,
     ...stored,
-    effectScheme: stored.effectScheme ?? (Object.keys(stored).length ? 'unified' : 'workspace')
+    effectScheme: stored.effectScheme ?? 'workspace'
   }
   return settingsCache!
 }

@@ -1,5 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { useSettings } from './settings'
 import { App } from './App'
 import { useStore } from './store'
 import { registerControlHandler } from './control'
@@ -14,8 +15,8 @@ import { registerControlHandler } from './control'
 registerControlHandler()
 
 const root = createRoot(document.getElementById('root')!)
-root.render(
+void useSettings.getState().load().catch(() => undefined).then(() => root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-)
+))

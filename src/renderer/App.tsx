@@ -5,7 +5,7 @@ import { t } from '@shared/i18n'
  * global keyboard map, autosave, credits.
  */
 
-import { LaunchIntro } from './components/LaunchIntro'
+import { LaunchIntro, shouldShowIntro } from './components/LaunchIntro'
 import { useSettings } from './settings'
 import { Production } from './panels/Production'
 import { useFileDrop } from './lib/fileDrop'
@@ -52,7 +52,7 @@ export function Credits(): JSX.Element {
   )
 }
 
-function Welcome({ openLibrary }: { openLibrary(): void }): JSX.Element {
+function Welcome({ openLibrary, resume }: { openLibrary(): void; resume?: () => void }): JSX.Element {
   const setHelpOpen = useStore((s) => s.setHelpOpen)
   return (
     <div className="welcome">
@@ -71,6 +71,7 @@ function Welcome({ openLibrary }: { openLibrary(): void }): JSX.Element {
       </div>
       <p>{t('Capture a frame. Understand a shot. Build your story.')}</p>
       <div className="actions">
+        {resume && <button className="btn primary" onClick={resume}>{t('Continue project')}</button>}
         <button className="btn primary" onClick={openLibrary}>
           {t('New Project')}
         </button>
@@ -122,7 +123,7 @@ interface Transport {
   setOut(): void
 }
 
-function useKeyboard(): void {
+function useKeyboard(enabled: boolean): void {
   useEffect(
     () =>
       window.sbr.onHistory((action) => {
@@ -138,7 +139,7 @@ function useKeyboard(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const s = useStore.getState()
-      if (!s.doc) return
+      if (!enabled || !s.doc) return
       const inField =
         document.activeElement instanceof HTMLInputElement ||
         document.activeElement instanceof HTMLTextAreaElement ||
@@ -237,15 +238,19 @@ function useKeyboard(): void {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [enabled])
 }
 
 export function App(): JSX.Element {
   useFileDrop()
+  const [home, setHome] = useState(false)
+  const [introRun, setIntroRun] = useState(0)
+  const [introActive, setIntroActive] = useState(shouldShowIntro)
+  const finishIntro = useCallback(() => setIntroActive(false), [])
   const [searchLibrary, setSearchLibrary] = useState(false)
   const [panel, setPanel] = useState<'library' | 'settings' | null>(null)
   useEffect(() => {
-    void useSettings.getState().load()
+    if (!useSettings.getState().value) void useSettings.getState().load()
   }, [])
   const scheme = useSettings((state) => state.value?.effectScheme ?? 'workspace')
   useEffect(() => {
@@ -269,6 +274,7 @@ export function App(): JSX.Element {
     'no'
   ] as const)
   const doc = useStore((s) => s.doc)
+  useEffect(() => setHome(false), [doc?.id])
   const workspace = useStore((s) => s.workspace)
   const canUndo = useStore((s) => s.history.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
@@ -281,14 +287,14 @@ export function App(): JSX.Element {
   visited.current.views.add(workspace)
 
   useAutosave()
-  useKeyboard()
+  useKeyboard(!home && !introActive)
   useEffect(() => {
-    if (workspace !== 'capture')
+    if (home || workspace !== 'capture')
       document.querySelectorAll('video').forEach((video) => video.pause())
     document.querySelectorAll<HTMLElement>('.workspace-page').forEach((page) => {
       page.inert = page.classList.contains('inactive')
     })
-  }, [workspace, doc?.id])
+  }, [workspace, doc?.id, home])
 
   const onSave = useCallback(async () => {
     const json = currentProjectJson()
@@ -305,9 +311,28 @@ export function App(): JSX.Element {
     }
   }, [folder, markSaved])
 
+  const goHome = async (): Promise<void> => {
+    const state = useStore.getState()
+    const json = currentProjectJson()
+    try {
+      if (state.dirty && state.projectFolder && json) {
+        await window.sbr.saveProject(state.projectFolder, json)
+        state.markSaved(json)
+      }
+      setPanel(null)
+      setHome(true)
+      setIntroRun((run) => run + 1)
+      setIntroActive(true)
+    } catch (error) {
+      state.toast(t('Could not save project: {error}', { error: String(error) }), 'error')
+    }
+  }
+  const introClass = introActive ? ' intro-revealing' : ''
+  const introDuration = simplifyAnimations ? 'reduced' : useSettings.getState().value?.introDuration ?? 'full'
+
   const overlays = (
     <Fragment key="application-overlays">
-      <LaunchIntro />
+      {introActive && <LaunchIntro key={introRun} onComplete={finishIntro} />}
       {panel && (
         <div
           key={panel}
@@ -321,21 +346,21 @@ export function App(): JSX.Element {
         </div>
       )}
       {panel === 'library' && (
-        <ProjectLibrary searchInitiallyOpen={searchLibrary} onClose={() => setPanel(null)} />
+        <ProjectLibrary searchInitiallyOpen={searchLibrary} onOpened={() => setHome(false)} onClose={() => setPanel(null)} />
       )}
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
     </Fragment>
   )
-  if (!doc) {
+  if (!doc || home) {
     return (
-      <div className="app welcome-app" data-language={language}>
+      <div className={`app welcome-app${introClass}`} data-intro-duration={introDuration} data-language={language}>
         <div className="titlebar">
           <span className="app-name">帧册 / FRAMEBOOK</span>
           <div className="spacer" />
           <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
           <LanguageSelect />
         </div>
-        <Welcome openLibrary={() => setPanel('library')} />
+        <Welcome openLibrary={() => setPanel('library')} resume={doc ? () => setHome(false) : undefined} />
         {overlays}
         <Toasts />
         <HelpOverlay />
@@ -344,7 +369,7 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app" data-language={language}>
+    <div className={`app${introClass}`} data-intro-duration={introDuration} data-language={language}>
       <div className="titlebar">
         <span className="app-name">帧册 / FRAMEBOOK</span>
         <div className="project-identity">
@@ -354,6 +379,7 @@ export function App(): JSX.Element {
           </span>
         </div>
         <div className="spacer" />
+        <TopAction icon="home" label="Home" onClick={() => void goHome()} />
         <TopAction
           icon="undo"
           label="Undo"

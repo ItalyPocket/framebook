@@ -3233,18 +3233,42 @@ html[data-simplify-animations='true'] .workspace-page {
   min-width: 120px;
   max-width: 240px;
 }
+.intro-revealing {
+  --intro-time: 3100ms;
+}
+.intro-revealing[data-intro-duration='short'] {
+  --intro-time: 800ms;
+}
+.intro-revealing > .welcome {
+  animation: home-unfold var(--intro-time) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.intro-revealing .welcome-title,
+.intro-revealing .welcome > p,
+.intro-revealing .welcome .actions,
+.intro-revealing > .titlebar {
+  animation: home-content var(--intro-time) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 .launch-intro {
   position: fixed;
   inset: 0;
   z-index: 10000;
   border: 0;
   border-radius: 0;
-  background: #f4f5f2;
-  color: #101113;
+  background: transparent;
+  color: #f4f5f2;
   overflow: hidden;
   cursor: pointer;
-  animation: intro-exit 3.1s both;
   text-align: left;
+  --intro-time: 3100ms;
+}
+.launch-intro.short {
+  --intro-time: 800ms;
+}
+.intro-plane {
+  position: absolute;
+  inset: 0;
+  background: #1737d1;
+  animation: intro-reveal var(--intro-time) cubic-bezier(0.65, 0, 0.2, 1) both;
 }
 .intro-axis {
   position: absolute;
@@ -3252,9 +3276,9 @@ html[data-simplify-animations='true'] .workspace-page {
   top: 28%;
   height: 1px;
   width: 100%;
-  background: #1737d1;
+  background: #f4f5f2;
   transform-origin: left;
-  animation: intro-line 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: intro-line var(--intro-time) both;
 }
 .intro-axis.cross {
   left: 70%;
@@ -3262,7 +3286,6 @@ html[data-simplify-animations='true'] .workspace-page {
   width: 1px;
   height: 100%;
   transform-origin: top;
-  animation-delay: 0.2s;
 }
 .intro-mark {
   position: absolute;
@@ -3271,24 +3294,23 @@ html[data-simplify-animations='true'] .workspace-page {
   width: 180px;
   height: 210px;
   transform: rotate(-8deg);
+  animation: intro-dock var(--intro-time) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .intro-mark i {
   position: absolute;
   inset: 0;
-  background: #1737d1;
-  animation: intro-sheet 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: #f4f5f2;
+  animation: intro-sheet var(--intro-time) both;
   clip-path: polygon(0 0, 100% 0, 100% 85%, 80% 100%, 0 100%);
 }
 .intro-mark i:nth-child(2) {
   transform: translate(20px, -18px) rotate(10deg);
   background: #101113;
-  animation-delay: 0.16s;
 }
 .intro-mark i:nth-child(3) {
   inset: 26px 20px;
-  background: #f4f5f2;
+  background: #1737d1;
   transform: translate(-10px, 20px);
-  animation-delay: 0.32s;
 }
 .intro-title {
   position: absolute;
@@ -3297,7 +3319,7 @@ html[data-simplify-animations='true'] .workspace-page {
   font-size: clamp(64px, 9vw, 150px);
   font-weight: 900;
   letter-spacing: -0.06em;
-  animation: intro-type 1.4s 0.55s both;
+  animation: intro-type var(--intro-time) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .intro-title small {
   display: block;
@@ -3312,49 +3334,52 @@ html[data-simplify-animations='true'] .workspace-page {
   bottom: 28px;
   font-size: 10px;
   letter-spacing: 0.2em;
+  animation: intro-line var(--intro-time) both;
 }
 @keyframes intro-line {
-  from {
-    transform: scale(0);
-  }
-  to {
-    transform: scale(1);
-  }
+  0% { opacity: 0.45; transform: scale(0.18); }
+  35%, 55% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
 }
 @keyframes intro-sheet {
-  from {
-    opacity: 0;
-    translate: -120px 100px;
-    rotate: -30deg;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-    rotate: 0deg;
-  }
+  0% { translate: -64px 36px; rotate: -16deg; }
+  42%, 58% { translate: 0 0; rotate: 0deg; }
+  100% { translate: 40px -30px; rotate: 12deg; }
+}
+@keyframes intro-dock {
+  0%, 55% { opacity: 1; }
+  100% { opacity: 0; translate: 20vw 8vh; }
 }
 @keyframes intro-type {
-  from {
-    opacity: 0;
-    translate: 60px 0;
-    clip-path: inset(0 100% 0 0);
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-    clip-path: inset(0);
-  }
+  0% { opacity: 0.65; translate: 30px 0; clip-path: inset(0 10% 0 0); }
+  35%, 55% { opacity: 1; translate: 0 0; clip-path: inset(0); }
+  100% { opacity: 0; translate: -12vw -8vh; clip-path: inset(0); }
 }
-@keyframes intro-exit {
-  0%,
-  82% {
-    opacity: 1;
-    clip-path: inset(0);
-  }
-  100% {
-    opacity: 0;
-    clip-path: inset(0 0 100% 0);
-  }
+@keyframes intro-reveal {
+  0%, 48% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(100% 0, 100% 0, 100% 0, 100% 0); }
+}
+@keyframes home-unfold {
+  0%, 42% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0); }
+}
+@keyframes home-content {
+  0%, 45% { opacity: 0; translate: -28px 12px; }
+  100% { opacity: 1; translate: 0 0; }
+}
+html[data-simplify-animations='true'] .intro-revealing > .welcome,
+html[data-simplify-animations='true'] .intro-revealing .welcome-title,
+html[data-simplify-animations='true'] .intro-revealing .welcome > p,
+html[data-simplify-animations='true'] .intro-revealing .actions,
+html[data-simplify-animations='true'] .intro-revealing > .titlebar {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-revealing > .welcome,
+  .intro-revealing .welcome-title,
+  .intro-revealing .welcome > p,
+  .intro-revealing .welcome .actions,
+  .intro-revealing > .titlebar { animation: none; }
 }
 html[data-effect-scheme='workspace'] .workspace-wipe::after {
   content: attr(data-title);
@@ -3984,28 +4009,6 @@ html[data-simplify-animations='true'] .workspace-page.active * {
 }
 html[data-simplify-animations='true'] .launch-intro * {
   animation: none !important;
-}
-.launch-intro.short {
-  animation: intro-exit 0.8s both;
-}
-.launch-intro.short .intro-axis {
-  animation-duration: 0.28s;
-}
-.launch-intro.short .intro-axis.cross {
-  animation-delay: 0.05s;
-}
-.launch-intro.short .intro-mark i {
-  animation-duration: 0.4s;
-}
-.launch-intro.short .intro-mark i:nth-child(2) {
-  animation-delay: 0.04s;
-}
-.launch-intro.short .intro-mark i:nth-child(3) {
-  animation-delay: 0.08s;
-}
-.launch-intro.short .intro-title {
-  animation-duration: 0.38s;
-  animation-delay: 0.12s;
 }
 .modeless-backdrop {
   pointer-events: none;

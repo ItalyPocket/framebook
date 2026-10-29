@@ -253,10 +253,12 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
 
 export function ProjectLibrary({
   onClose,
-  searchInitiallyOpen = false
+  searchInitiallyOpen = false,
+  onOpened
 }: {
   onClose(): void
   searchInitiallyOpen?: boolean
+  onOpened?(): void
 }): JSX.Element {
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [search, setSearch] = useState('')
@@ -280,6 +282,7 @@ export function ProjectLibrary({
         state.markSaved(json)
       }
       await operation()
+      onOpened?.()
       onClose()
     } catch (reason) {
       setError(String(reason))

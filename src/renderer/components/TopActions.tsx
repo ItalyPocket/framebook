@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { t } from '@shared/i18n'
 
 export type ActionIcon =
+  | 'home'
   | 'undo'
   | 'redo'
   | 'library'
@@ -12,6 +13,7 @@ export type ActionIcon =
   | 'search'
 export function ActionSymbol({ icon }: { icon: ActionIcon }): JSX.Element {
   const paths: Record<ActionIcon, ReactNode> = {
+    home: <path d="m3 11 9-8 9 8M5 9v12h14V9M9 21v-8h6v8" />,
     search: (
       <>
         <circle cx="10" cy="10" r="6.5" />

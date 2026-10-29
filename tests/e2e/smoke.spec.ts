@@ -7,7 +7,7 @@
  */
 
 import { _electron as electron, test, expect, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync, existsSync, readFileSync, readdirSync } from 'fs'
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -30,7 +30,7 @@ function makeTestClip(dir: string): string {
   // Two 1s testsrc segments of different colors concatenated → a scene cut at
   // t=1s that scene-detect must find. All via ffmpeg; no external assets.
   const out = join(dir, 'clip.mp4')
-  execFileSync('ffmpeg', [
+  execFileSync(join(process.cwd(), 'node_modules/ffmpeg-static/ffmpeg'), [
     '-y',
     '-f', 'lavfi', '-i', 'color=c=red:s=320x180:d=1,format=yuv420p',
     '-f', 'lavfi', '-i', 'color=c=blue:s=320x180:d=1,format=yuv420p',
@@ -42,6 +42,8 @@ function makeTestClip(dir: string): string {
 
 test.beforeAll(async () => {
   smokeDir = mkdtempSync(join(tmpdir(), 'sbr-smoke-'))
+  mkdirSync(join(smokeDir, '.app-data'))
+  writeFileSync(join(smokeDir, '.app-data', 'settings.json'), JSON.stringify({ simplifyAnimations: true, introMode: 'off' }))
   clipPath = makeTestClip(smokeDir)
   app = await electron.launch({
     args: ['out/main/index.js'],
@@ -215,11 +217,7 @@ test('exports a real board package with all expected files', async () => {
   expect(md).toContain('still.png')
 
   // contact-sheet.png is a non-trivial image.
-  const probe = JSON.parse(
-    execFileSync('ffprobe', [
-      '-v', 'quiet', '-print_format', 'json', '-show_streams', join(dir, 'contact-sheet.png')
-    ]).toString()
-  )
-  const stream = probe.streams.find((x: any) => x.codec_type === 'video')
-  expect(stream.width).toBeGreaterThan(100)
+  const sheet = readFileSync(join(dir, 'contact-sheet.png'))
+  expect(sheet.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+  expect(sheet.readUInt32BE(16)).toBeGreaterThan(100)
 })
