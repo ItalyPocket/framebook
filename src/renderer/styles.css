@@ -2550,8 +2550,10 @@ button.btn:focus-visible::after {
   padding: 10px 8px 4px;
 }
 .media-filters button {
-  flex: 1;
-  padding: 6px 3px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
   border: 1px solid transparent;
   background: transparent;
   font-size: 12px;
@@ -3956,8 +3958,9 @@ html[data-simplify-animations='true'] .workspace-page.active * {
   gap: 10px;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 42px;
+  width: auto;
+  min-height: 36px;
+  padding: 6px 12px;
 }
 .media-folder-tools {
   align-items: center;
@@ -4037,12 +4040,14 @@ html[data-simplify-animations='true'] .launch-intro * {
 .gallery-toolbar button, .media-selection button, .media-selection span { white-space: nowrap; }
 
 .media-filter-panel { padding: 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--border); }
-.media-filter-panel label { display: flex; justify-content: space-between; gap: 8px; }
-.media-view-switch { display: flex; margin-left: auto; border: 1px solid var(--border); }
+.media-filter-panel label { display: grid; grid-template-columns: 5em minmax(0, 160px); align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; }
+.media-filter-panel select { width: 100%; min-width: 0; }
+.media-filter-panel { justify-content: start; }
+.media-view-switch { display: flex; margin-left: 4px; border: 1px solid var(--border); }
 .media-view-switch button[aria-pressed="true"] { background: #1737D1; color: white; }
 .media-selection { flex-wrap: wrap; gap: 6px; }
-.context-shield { position: fixed; inset: 0; z-index: 1500; }
-.media-context { display: grid; width: 250px; max-height: calc(100vh - 16px); overflow: auto; }
+.context-shield { position: fixed; inset: 0; z-index: 10000; isolation: isolate; }
+.media-context { z-index: 1; display: grid; width: 250px; max-height: calc(100vh - 16px); overflow: auto; }
 .dock-layout { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .dock-tools { display: flex; gap: 14px; padding: 4px 12px; flex-wrap: wrap; }
 .dock-grid { flex: 1; display: grid; min-height: 0; min-width: 0; overflow: hidden; }
@@ -4076,3 +4081,13 @@ html[data-simplify-animations='true'] .launch-intro * {
 .dock-content .transport .scrub { min-width: 120px; }
 .dock-content .viewer-stage { min-height: 0; }
 .gallery-toolbar > span, .gallery-footer > span { white-space: nowrap; }
+
+.bin-actions { justify-content: flex-start; flex-wrap: wrap; }
+.bin-actions .media-upload { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 10px; width: auto; }
+.bin button, .bin label, .media-context button, .dock-tools button { white-space: nowrap; }
+.media-filter-panel .text-button { justify-self: start; width: auto; }
+.media-filters { align-items: center; }
+.libtv-guide { margin: 12px 0; border: 1px solid var(--border); padding: 12px; }
+.libtv-guide summary { cursor: pointer; color: #1737D1; font-weight: 600; }
+.libtv-guide ol { padding-left: 22px; line-height: 1.7; }
+.libtv-guide code { overflow-wrap: anywhere; }

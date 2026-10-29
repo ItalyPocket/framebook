@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { SearchControl } from '../components/SearchControl'
 import { t } from '@shared/i18n'
 /**
@@ -249,6 +250,7 @@ export function MediaBin(): JSX.Element {
           </svg>
           {t('Import')}
         </button>
+        <button className="btn media-upload" title={t('Upload to LibTV')} aria-label={t('Upload to LibTV')} disabled={!visibleMedia.length && !selected.length} onClick={() => window.dispatchEvent(new CustomEvent('libtv-upload',{detail:{mediaIds:selected.length?selected:visibleMedia.map((m) => m.id)}}))}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 17V3m-5 5 5-5 5 5M3 16v5h18v-5" /></svg><span>LibTV</span></button>
       </div>
       <div className="media-filters">
         <button className={filterOpen || kind !== 'all' || orientation !== 'all' || storage !== 'all' ? 'active' : ''} aria-label={t('Filter media')} title={t('Filter media')} onClick={() => setFilterOpen(!filterOpen)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 4h18l-7 8v7l-4 2v-9z" /></svg></button>
@@ -434,8 +436,8 @@ export function MediaBin(): JSX.Element {
           </div>
         )}
       </div>
-      {context && <div className="context-shield" onClick={() => setContext(null)} onContextMenu={(e) => { e.preventDefault(); setContext(null) }}>
-        <div className="floating-menu media-context" role="menu" style={{left: Math.max(8, Math.min(context.x, window.innerWidth - 260)), top: Math.max(8, Math.min(context.y, window.innerHeight - 340))}} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if(e.key === 'Escape') setContext(null); if(e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const items=[...e.currentTarget.querySelectorAll<HTMLElement>('button,select')];const index=items.indexOf(document.activeElement as HTMLElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus() } }}>
+      {context && createPortal(<div className="context-shield" onClick={() => setContext(null)} onContextMenu={(e) => { e.preventDefault(); setContext(null) }}>
+        <div className="floating-menu media-context" role="menu" style={{left: Math.max(8, Math.min(context.x, window.innerWidth - 260)), top: Math.max(8, Math.min(context.y, window.innerHeight - 340)), maxHeight: window.innerHeight - Math.max(8, Math.min(context.y, window.innerHeight - 340)) - 8}} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if(e.key === 'Escape') setContext(null); if(e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const items=[...e.currentTarget.querySelectorAll<HTMLElement>('button,select')];const index=items.indexOf(document.activeElement as HTMLElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus() } }}>
           <button autoFocus onClick={() => { useStore.getState().selectMedia(context.id); setContext(null) }}>{t('Open preview')}</button>
           <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; setRename({id:item.id,name:item.name}); setContext(null) }}>{t('Rename')}</button>
           <button onClick={() => { useStore.getState().mutate('duplicate media', (project) => { const item = project.media.find((m) => m.id === context.id); if(item) project.media.push({...item,id:newId('media'),name:`${item.name} ${t('Copy')}`}) }); setContext(null) }}>{t('Duplicate')}</button>
@@ -451,7 +453,7 @@ export function MediaBin(): JSX.Element {
             setContext(null)
           }}>{t('Remove from project')}</button>
         </div>
-      </div>}
+      </div>, document.body)}
       {rename && <Dialog title={t('Rename')} onClose={() => setRename(null)}><form onSubmit={(e) => { e.preventDefault(); if(!rename.name.trim()) return; useStore.getState().mutate('rename media', (p) => { const item = p.media.find((m) => m.id === rename.id); if(item) item.name = rename.name.trim() }); setRename(null) }}><input autoFocus value={rename.name} onChange={(e) => setRename({...rename,name:e.target.value})} /><button className="btn primary" disabled={!rename.name.trim()}>{t('Save')}</button></form></Dialog>}
       {folderDialog && (
         <Dialog

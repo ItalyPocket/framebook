@@ -135,6 +135,7 @@ export function Board(): JSX.Element {
         <span className="panel-title" style={{ margin: 0 }}>{t("Frame gallery")}</span>
         <span className="board-count">{frames.length} {t("frames")}</span>
 <button className="btn small" onClick={() => useStore.getState().setWorkspace('gallery')}>{t('Open gallery')} ↗</button>
+        <button className="btn small" disabled={!frames.length} onClick={() => window.dispatchEvent(new CustomEvent('libtv-upload',{detail:{frameIds:frames.map((frame) => frame.id)}}))}>{t('Upload to LibTV')}</button>
         <div style={{ flex: 1 }} />
         <button className="btn small" onClick={() => setPresentOpen(true)} disabled={frames.length === 0} title={t("Present / play the board (P)")}>
           {t("▶ Present")}</button>

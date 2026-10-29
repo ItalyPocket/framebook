@@ -1,5 +1,13 @@
 # 2.5.2 — 清理与 AI 暂停
 
+## 2.6.1
+
+- Restore the full gallery grid; keep video preview and timeline markers in Capture.
+- Use compact media toolbar controls and single-line filter labels.
+- Render media context menus above dock panels without clipping.
+- Add expandable LibTV connection instructions and toolbar upload actions.
+
+
 ## 2.6.0
 
 - Preview source videos inside the gallery; seek from stills and grouped timeline markers.

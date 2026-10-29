@@ -1,7 +1,3 @@
-import { RelinkMedia } from '../components/RelinkMedia'
-import { DockLayout } from '../components/DockLayout'
-import { VideoViewer } from './Viewer'
-import { useMediaUrl } from '../lib/useMediaUrl'
 import type { ExportPreview } from '@shared/workspace'
 import { ExportPreviewDialog } from '../components/ExportPreview'
 import { useMemo, useState } from 'react'
@@ -13,11 +9,6 @@ import { buildExportInputs } from '../lib/frameOps'
 import { Dialog, Menu, MenuItem, usePreference } from '../components/Controls'
 
 export function Gallery(): JSX.Element {
-  const previewId = useStore((s) => s.selectedFrameId)
-  const previewFrame = useStore((s) => s.doc?.frames.find((frame) => frame.id === previewId))
-  const previewMedia = useStore((s) => s.doc?.media.find((media) => media.id === previewFrame?.mediaId))
-  const previewUrl = useMediaUrl(previewMedia ?? null)
-  const [previewOpen, setPreviewOpen] = useState(true)
   const rawFrames = useStore((s) => s.doc?.frames)
   const frames = useMemo(
     () => [...(rawFrames ?? [])].sort((a, b) => a.order - b.order),
@@ -90,9 +81,6 @@ export function Gallery(): JSX.Element {
         </div>
         <span className="big-count">{String(frames.length).padStart(3, '0')}</span>
       </header>
-      <DockLayout name="gallery" panels={[
-        { id:'preview',title:'Preview',content:previewMedia ? <section className="gallery-dock-preview">{previewOpen && (previewMedia.kind === 'video' ? <VideoViewer key={previewMedia.id} media={previewMedia} workspace="gallery" /> : previewUrl ? <img src={previewUrl} alt={previewMedia.name} /> : <RelinkMedia media={previewMedia} />)}</section> : <p className="hint">{t('Select a frame to preview its source.')}</p> },
-        { id:'gallery',title:'Frame gallery',content:<>
       <div className="gallery-toolbar">
         <button className="btn" disabled={!frames.length} onClick={() => window.dispatchEvent(new CustomEvent('libtv-upload',{detail:{frameIds:(chosen.length?chosen:frames).map((f) => f.id)}}))}>{t('Upload to LibTV')}</button>
         <button className="btn primary" onClick={() => void importImages()}>
@@ -161,7 +149,8 @@ export function Gallery(): JSX.Element {
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest('label, input, button')) return
                 useStore.setState({ selectedFrameId: frame.id, selectedMediaId: frame.mediaId, seekTime: frame.timeS })
-                setPreviewOpen(true)
+                useStore.getState().setViewMode('clip')
+                useStore.getState().setWorkspace('capture')
               }}
 
             >
@@ -250,8 +239,6 @@ export function Gallery(): JSX.Element {
           <MenuItem onClick={() => void runExport('jpg')}>{t('Numbered JPG')}</MenuItem>
         </Menu>
       </footer>
-      </>}
-      ]} />
       {removing && (
         <Dialog title={t('Remove')} onClose={() => setRemoving(null)}>
           <p className="dialog-description">

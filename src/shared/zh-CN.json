@@ -598,5 +598,14 @@
   "uploaded": "资源已上传",
   "failed": "上传失败",
   "Type": "类型",
-  "Connect another project": "连接其他项目"
+  "Connect another project": "连接其他项目",
+  "How to get the project ID and access key": "如何获取项目 ID 和密钥",
+  "Open LibTV, sign in, and open the project you want to connect.": "打开 LibTV 并登录，进入需要连接的项目。",
+  "Copy the canvas URL. The value after projectId= is the project ID. You can paste the full URL here.": "复制画布网址，projectId= 后的内容就是项目 ID，也可以直接粘贴完整网址。",
+  "Look for LibTV Skills or Access Key in the project or account settings. Copy the access key provided by LibTV. If the entry is unavailable, consult the official guide or account support.": "在项目或账号设置中查找 LibTV Skills／Access Key 入口，复制 LibTV 提供的访问密钥。若账号没有该入口，请查阅官方指南或联系平台支持。",
+  "Paste the key into Access key and click Verify and link project. Leave the project ID empty to read the project bound to the key automatically.": "将密钥粘贴到“访问密钥”，点击“验证并连接项目”。项目 ID 留空时会自动读取密钥绑定的项目。",
+  "If the returned project does not match, obtain the correct project key. Do not share the key or include it in project files.": "若返回项目与目标不符，请获取目标项目对应的密钥。不要公开密钥或将它写入项目文件。",
+  "Open LibTV": "打开 LibTV",
+  "Official connection guide": "官方连接指南",
+  "LibTV may change its access-key entry or API availability. A resource URL does not confirm that it is visible on the canvas.": "LibTV 的密钥入口及接口可用性可能调整。资源网址不代表素材已在画布中可见。"
 }
