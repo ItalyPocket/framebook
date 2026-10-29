@@ -1,18 +1,4 @@
-/**
- * Board export. Given the project and an ordered list of frames (each with a
- * resolved source media path + optional crop + prompt text), write a package:
- *
- *   exports/board-<stamp>/
- *     NN_<slug>/still.png     full-res still, crop applied via ffmpeg
- *     NN_<slug>/prompt.txt    the frame's prompt (or template scaffold)
- *     prompts.json            whole board, machine-readable
- *     contact-sheet.png       ffmpeg tile montage with labels burned via drawtext
- *     board.md                readable markdown storyboard
- *
- * Runs in the main process. Returns the package path on success.
- */
-
-import { mkdir, writeFile, copyFile } from 'fs/promises'
+import { mkdir, writeFile, copyFile, rm } from 'fs/promises'
 import { join } from 'path'
 import { resolveFfmpeg, run } from './ffmpeg'
 import { slugLabel, emptyShotMeta } from '../shared/types'
@@ -97,10 +83,8 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
   for (let i = 0; i < input.frames.length; i++) {
     const f = input.frames[i]!
     const nn = String(i + 1).padStart(2, '0')
-    const folderName = `${nn}_${slugLabel(f.label)}`
-    const dir = join(pkg, folderName)
-    await mkdir(dir, { recursive: true })
-    const stillOut = join(dir, 'still.png')
+    const fileName = `${nn}_${slugLabel(f.label)}.png`
+    const stillOut = join(pkg, fileName)
 
     // sourcePng already has annotations composited (renderer-side). Apply the
     // crop at full source resolution if one is set, else copy.
@@ -116,11 +100,11 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
     }
     stillPaths.push(stillOut)
 
-    if (f.promptText) await writeFile(join(dir, 'prompt.txt'), f.promptText, 'utf-8')
+    if (f.promptText) await writeFile(join(pkg, `${nn}_${slugLabel(f.label)}.txt`), f.promptText, 'utf-8')
 
     promptsJson.push({
       index: i + 1,
-      folder: folderName,
+      file: fileName,
       label: f.label,
       notes: f.notes,
       timeS: f.timeS,
@@ -133,7 +117,7 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
     mdLines.push(
       `## ${nn} — ${f.label || '(untitled)'}`,
       '',
-      `![${f.label}](${folderName}/still.png)`,
+      `![${f.label}](<${fileName}>)`,
       ''
     )
     if (f.notes) mdLines.push(`**Notes:** ${f.notes}`, '')
@@ -147,7 +131,11 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
   )
   await writeFile(join(pkg, 'board.md'), mdLines.join('\n'), 'utf-8')
 
-  await buildContactSheet(ffmpeg, pkg, input.frames, stillPaths)
+  try {
+    await buildContactSheet(ffmpeg, pkg, input.frames, stillPaths)
+  } finally {
+    await rm(join(pkg, '.cells'), { recursive: true, force: true })
+  }
 
   return { ok: true, packagePath: pkg }
 }

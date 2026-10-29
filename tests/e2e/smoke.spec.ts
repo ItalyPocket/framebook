@@ -7,7 +7,7 @@
  */
 
 import { _electron as electron, test, expect, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync } from 'fs'
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -193,22 +193,21 @@ test('exports a real board package with all expected files', async () => {
   expect(files).toContain('board.md')
   expect(files).toContain('contact-sheet.png')
 
-  // First frame folder holds still.png + prompt.txt.
-  const frameFolders = files.filter((f) => /^\d\d_/.test(f))
-  expect(frameFolders.length).toBeGreaterThanOrEqual(1)
-  const firstFolder = join(dir, frameFolders.sort()[0]!)
-  expect(existsSync(join(firstFolder, 'still.png'))).toBe(true)
-  expect(existsSync(join(firstFolder, 'prompt.txt'))).toBe(true)
+  const frameFiles = files.filter((f) => /^\d+_.*\.png$/.test(f)).sort()
+  expect(frameFiles.length).toBeGreaterThanOrEqual(1)
+  expect(files.every((file) => !statSync(join(dir, file)).isDirectory())).toBe(true)
+  expect(existsSync(join(dir, frameFiles[0]!.replace(/\.png$/, '.txt')))).toBe(true)
 
   // prompts.json is valid and lists the frames.
   const promptsJson = JSON.parse(readFileSync(join(dir, 'prompts.json'), 'utf-8'))
   expect(Array.isArray(promptsJson.frames)).toBe(true)
-  expect(promptsJson.frames.length).toBe(frameFolders.length)
+  expect(promptsJson.frames.length).toBe(frameFiles.length)
 
   // board.md is a real markdown storyboard.
   const md = readFileSync(join(dir, 'board.md'), 'utf-8')
   expect(md).toContain('# ')
-  expect(md).toContain('still.png')
+  expect(md).toContain(frameFiles[0])
+  expect(promptsJson.frames.map((frame: { file: string }) => frame.file)).toEqual(frameFiles)
 
   // contact-sheet.png is a non-trivial image.
   const sheet = readFileSync(join(dir, 'contact-sheet.png'))
