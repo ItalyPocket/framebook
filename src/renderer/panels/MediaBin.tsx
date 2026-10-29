@@ -201,7 +201,7 @@ export function MediaBin(): JSX.Element {
     setSelected([])
   }
   return (
-    <div className="bin panel">
+    <div className="bin panel" data-import-folder={currentFolder ?? ''}>
       <div className="bin-actions">
         <button className="btn small" onClick={onImport}>
           {t('＋ Import')}

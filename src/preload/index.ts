@@ -4,7 +4,7 @@
  */
 
 import type { AppSettings, ProjectEntry, RecoveryEntry, ExportPreview } from '../shared/workspace'
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { DescribeResult } from '../shared/types'
 import type { ExportFrameInput, StoryboardExportInput, FileExportResult } from '../shared/exports'
 export type { ExportFrameInput } from '../shared/exports'
@@ -68,6 +68,7 @@ export interface SbrAPI {
   setLanguage(value: 'system' | 'zh-CN' | 'en'): Promise<void>
   newProjectDialog(): Promise<string | null>
   openProjectDialog(): Promise<string | null>
+  pathForFile(file: File): string
   importMediaDialog(): Promise<string[]>
   importImagesDialog(): Promise<string[]>
   saveProject(folder: string, json: string): Promise<boolean>
@@ -135,6 +136,7 @@ const api: SbrAPI = {
   setLanguage: (value) => ipcRenderer.invoke('app:setLanguage', value),
   newProjectDialog: () => ipcRenderer.invoke('dialog:newProject'),
   openProjectDialog: () => ipcRenderer.invoke('dialog:openProject'),
+  pathForFile: (file) => webUtils.getPathForFile(file),
   importMediaDialog: () => ipcRenderer.invoke('dialog:importMedia'),
   importImagesDialog: () => ipcRenderer.invoke('dialog:importImages'),
   saveProject: (folder, json) => ipcRenderer.invoke('project:save', folder, json),

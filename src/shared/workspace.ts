@@ -9,6 +9,7 @@ export interface AppSettings {
   autosave: boolean
   autosaveSeconds: number
   backupLimit: number
+  motionStyle: 'standard' | 'cinematic'
   simplifyAnimations: boolean
   copyMedia: boolean
 }

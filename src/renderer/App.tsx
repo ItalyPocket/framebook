@@ -6,6 +6,8 @@ import { t } from '@shared/i18n'
  */
 
 import { useSettings } from './settings'
+import { Production } from './panels/Production'
+import { useFileDrop } from './lib/fileDrop'
 import { ProjectLibrary, SettingsDialog } from './components/ProjectManager'
 import { ActionLabel, TopAction } from './components/TopActions'
 import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
@@ -238,10 +240,15 @@ function useKeyboard(): void {
 }
 
 export function App(): JSX.Element {
+  useFileDrop()
   const [panel, setPanel] = useState<'library' | 'settings' | null>(null)
   useEffect(() => {
     void useSettings.getState().load()
   }, [])
+  const motionStyle = useSettings((state) => state.value?.motionStyle ?? 'standard')
+  useEffect(() => {
+    document.documentElement.dataset.motionStyle = motionStyle
+  }, [motionStyle])
   const simplifyAnimations = useSettings((state) => state.value?.simplifyAnimations ?? false)
   useEffect(() => {
     document.documentElement.dataset.simplifyAnimations = String(simplifyAnimations)
@@ -345,20 +352,26 @@ export function App(): JSX.Element {
         <TopAction icon="help" label="Help" onClick={() => useStore.getState().setHelpOpen(true)} />
       </div>
       <nav className="workspace-nav">
-        {(['capture', 'gallery', 'storyboard'] as const).map((value, index) => (
-          <button
-            key={value}
-            className={workspace === value ? 'active' : ''}
-            onClick={() => useStore.getState().setWorkspace(value)}
-          >
-            <span>0{index + 1}</span>
-            {t(
-              { capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor' }[
-                value
-              ]
-            )}
-          </button>
-        ))}
+        {(['capture', 'gallery', 'storyboard', 'planning', 'shooting'] as const).map(
+          (value, index) => (
+            <button
+              key={value}
+              className={workspace === value ? 'active' : ''}
+              onClick={() => useStore.getState().setWorkspace(value)}
+            >
+              <span>0{index + 1}</span>
+              {t(
+                {
+                  capture: 'Capture',
+                  gallery: 'Frame gallery',
+                  storyboard: 'Storyboard editor',
+                  planning: 'Shooting plan',
+                  shooting: 'On-set shooting'
+                }[value]
+              )}
+            </button>
+          )
+        )}
         <span className="nav-note">
           FRAMEBOOK / {doc.frames.length} {t('frames')} / {doc.storyboard.shots.length} {t('shots')}
         </span>
@@ -408,6 +421,15 @@ export function App(): JSX.Element {
         >
           {visited.current.views.has('storyboard') && <StoryboardEditor />}
         </div>
+        {(['planning', 'shooting'] as const).map((view) => (
+          <div
+            key={view}
+            className={`workspace-page ${workspace === view ? 'active' : 'inactive'}`}
+            aria-hidden={workspace !== view}
+          >
+            {visited.current.views.has(view) && <Production shooting={view === 'shooting'} />}
+          </div>
+        ))}
         <div key={workspace} className="workspace-wipe" aria-hidden="true">
           <i />
           <i />

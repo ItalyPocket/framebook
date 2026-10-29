@@ -65,6 +65,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
           <div className="settings-grid">
             <section>
               <h3>{t('Appearance and motion')}</h3>
+              <label className="field">{t('Motion style')}<select value={value.motionStyle} onChange={event => change({motionStyle: event.target.value as 'standard' | 'cinematic'})}><option value="standard">{t('Standard · 800ms')}</option><option value="cinematic">{t('Cinematic · 1200ms')}</option></select></label>
               {check('simplifyAnimations', 'Simplify animations')}
               <p className="hint">{t('Use short fades instead of geometric motion.')}</p>
               <h3>{t('Projects and saving')}</h3>

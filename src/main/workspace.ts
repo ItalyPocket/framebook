@@ -38,6 +38,7 @@ export async function getSettings(): Promise<AppSettings> {
     autosave: true,
     autosaveSeconds: 60,
     backupLimit: 5,
+    motionStyle: 'standard',
     simplifyAnimations: false,
     copyMedia: true
   }

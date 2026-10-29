@@ -165,7 +165,7 @@ export function StoryboardEditor(): JSX.Element | null {
     setChosen([])
   }
   const imageCell = (shotId: string, column: StoryColumn, images: StoryImage[]): JSX.Element => (
-    <div className="story-cell-images">
+    <div className="story-cell-images" data-image-shot={shotId} data-image-column={column.id}>
       {images.map((image, index) => (
         <div key={image.frame.id} className="story-cell-image">
           <button

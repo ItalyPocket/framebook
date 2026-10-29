@@ -1,3 +1,4 @@
+import { parseProduction } from './production'
 /**
  * Document factories and (de)serialization. Pure — shared by main + renderer.
  * parseProject never throws on malformed input; it returns { doc, issues }.
@@ -20,6 +21,7 @@ export function createProject(name: string): Project {
     id: newId('proj'),
     name,
     media: [],
+    production: { days: [], takes: [] },
     mediaFolders: [],
     frames: [],
     storyboard: { title: name, description: '', columns: defaultStoryColumns(), shots: [] },
@@ -112,6 +114,7 @@ export function parseProject(json: string): ParseOutcome {
     id: typeof o.id === 'string' ? o.id : newId('proj'),
     name: typeof o.name === 'string' ? o.name : 'Untitled',
     media,
+    production: parseProduction(o.production),
     mediaFolders: Array.isArray(o.mediaFolders) ? o.mediaFolders.filter((entry): entry is { id: string; name: string; parentId: string | null } => !!entry && typeof entry === 'object' && typeof entry.id === 'string' && typeof entry.name === 'string' && (entry.parentId === null || typeof entry.parentId === 'string')) : [],
     frames,
     storyboard: sanitizeStoryboard(o.storyboard, frames, issues, typeof o.name === 'string' ? o.name : 'Untitled'),

@@ -105,13 +105,14 @@ export interface Project {
   id: string
   name: string
   media: MediaItem[]
+  production: import('./production').Production
   mediaFolders: { id: string; name: string; parentId: string | null }[]
   frames: Frame[]
   storyboard: Storyboard
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 5
+export const PROJECT_VERSION = 6
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2
