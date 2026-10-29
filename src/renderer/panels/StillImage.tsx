@@ -14,5 +14,5 @@ export function StillImage({ frame }: { frame: Frame }): JSX.Element {
     if (!still) void ensureStill(frame.id, frame).then((path) => { if (active) setFailed(!path) }).catch(() => { if (active) setFailed(true) })
     return () => { active = false }
   }, [frame.id, still])
-  return url ? <img onLoad={(event) => { const image=event.currentTarget;const container=image.closest<HTMLElement>('.gallery-image');if(container && image.naturalHeight) container.style.aspectRatio=`${image.naturalWidth} / ${image.naturalHeight}` }} src={url} alt={frame.label || t('frame still')} /> : <span className="still-placeholder">{t(failed ? 'Could not extract the frame image.' : 'Loading…')}</span>
+  return url ? <img src={url} alt={frame.label || t('frame still')} /> : <span className="still-placeholder">{t(failed ? 'Could not extract the frame image.' : 'Loading…')}</span>
 }

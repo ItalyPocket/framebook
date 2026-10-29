@@ -157,10 +157,10 @@ function ChoiceField({
         : option
     )
   const options = [...new Set([...column.options, ...selected])].filter((option) =>
-    option.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+    `${option} ${t(option)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
   )
   return (
-    <Menu label={selected.join(' · ') || '-'} className="cell-choice">
+    <Menu label={selected.map((option) => t(option)).join(' · ') || '-'} className="cell-choice">
       <input
         aria-label={t('Search or add an option')}
         placeholder={t('Search or add an option')}
@@ -175,7 +175,7 @@ function ChoiceField({
             aria-pressed={selected.includes(option)}
             onClick={() => choose(option)}
           >
-            <span>{option}</span>
+            <span>{t(option)}</span>
             {selected.includes(option) && <span>✓</span>}
           </button>
         ))}

@@ -1,5 +1,11 @@
 # 2.5.2 — 清理与 AI 暂停
 
+## 2.6.3
+
+- Fix overlapping gallery rows by letting image dimensions determine card height.
+- Remove the black backdrop from full-size still previews.
+- Translate captured shot parameters in storyboard selection cells.
+
 ## 2.6.2
 
 - Adapt gallery cards to image proportions and open stills in a full-size preview.

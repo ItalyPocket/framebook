@@ -83,6 +83,15 @@ test('gallery video seeks, media filtering, duplicate protection and dock layout
     await expect(page.locator('.gallery-footer .menu-trigger')).toBeInViewport()
     await page.evaluate(async () => { await Promise.all(Array.from(document.querySelectorAll('.modal-backdrop')).flatMap(node => node.getAnimations({subtree:true})).map(animation => animation.finished.catch(() => {}))) })
     await page.screenshot({path:'../outputs/media-upgrade-gallery.png'})
+    await page.evaluate(() => {
+      const s=window.__sbr.store.getState();const source=s.doc.frames[0];const still=s.stills[source.id]
+      s.mutate('gallery layout fixture',(doc: any) => { for(let i=0;i<21;i++) doc.frames.push({...source,id:`layout-${i}`,order:doc.frames.length}) })
+      for(let i=0;i<21;i++) s.setStill(`layout-${i}`,still)
+    })
+    expect(await page.locator('.gallery-grid').evaluate((grid) => {
+      const cards=Array.from(grid.querySelectorAll('.gallery-card')).map(node => node.getBoundingClientRect())
+      return cards.every((a,i) => cards.slice(i+1).every(b => a.right<=b.left+1 || b.right<=a.left+1 || a.bottom<=b.top+1 || b.bottom<=a.top+1))
+    })).toBe(true)
     const portrait=join(dir,'portrait.png')
     execFileSync(join(process.cwd(),'node_modules/ffmpeg-static/ffmpeg'),['-y','-f','lavfi','-i','color=c=green:s=240x426','-frames:v','1',portrait],{stdio:'ignore'})
     await page.evaluate(async (path) => { const s=window.__sbr.store.getState();const media=s.addMedia(await window.sbr.importMedia(s.projectFolder,path));s.addFrame(media.id,0,'竖图参考画面') },portrait)
