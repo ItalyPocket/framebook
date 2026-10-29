@@ -1,5 +1,5 @@
 import { _electron as electron, test, expect } from '@playwright/test'
-import { mkdtempSync, readFileSync, mkdirSync, copyFileSync } from 'fs'
+import { mkdtempSync, readFileSync, mkdirSync, copyFileSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -7,7 +7,9 @@ import { join } from 'path'
 test('gallery, editable storyboard table, image cells, save and exports', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'framebook-'))
   const clip = join(dir, 'portrait.mov')
-  execFileSync('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'testsrc2=s=270x480:d=2:r=24', '-c:v', 'libx264', clip], { stdio: 'ignore' })
+  mkdirSync(join(dir, '.app-data'))
+  writeFileSync(join(dir, '.app-data', 'settings.json'), JSON.stringify({ simplifyAnimations: true, introMode: 'off' }))
+  execFileSync(join(process.cwd(), 'node_modules/ffmpeg-static/ffmpeg'), ['-y', '-f', 'lavfi', '-i', 'testsrc2=s=270x480:d=2:r=24', '-c:v', 'libx264', clip], { stdio: 'ignore' })
   const app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, SBR_SMOKE_DIR: dir } })
   const outputs = join(process.cwd(), '../outputs')
   mkdirSync(outputs, { recursive: true })

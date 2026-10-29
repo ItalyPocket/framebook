@@ -544,20 +544,6 @@ textarea {
   border-bottom: 1px solid var(--border);
 }
 
-.prompt-box {
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text);
-  white-space: pre-wrap;
-  user-select: text;
-  min-height: 120px;
-  resize: vertical;
-}
 .hint {
   font-size: 11px;
   color: var(--text-faint);
@@ -656,15 +642,6 @@ textarea {
   font-family: var(--mono);
   font-size: 9px;
   color: var(--text-faint);
-}
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border-strong);
-}
-.dot.has-prompt {
-  background: var(--success);
 }
 .board-card:hover .board-card-del,
 .board-card:focus-within .board-card-del {

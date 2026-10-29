@@ -14,8 +14,7 @@ const tasks = [
   ['How is the gallery sorted?', 'Frames start in source-time order. Drag to arrange them manually; Restore time order resets the sequence.'],
   ['Will removing a gallery frame change my storyboard?', 'No. Storyboard images are independent snapshots with their source time preserved.'],
   ['How do I save and reopen a project?', 'Press Command-S to save. Open the .sbref folder next time; autosave recovery is offered after a crash.'],
-  ['How do I export?', 'Gallery exports numbered PNG or JPG images. Storyboard exports PDF pages or a CSV shot list.'],
-  ['Are AI features required?', 'No. Capture, editing and export work locally. Only Generate prompt sends the selected image to the configured AI provider.']
+  ['How do I export?', 'Gallery exports numbered PNG or JPG images. Storyboard exports PDF pages or a CSV shot list.']
 ]
 const shortcuts = [['Space', 'Play / pause'], ['← / →', 'Previous / next frame'], ['I / O', 'Set range start / end'], ['B', 'Capture current frame'], ['⌘S', 'Save project'], ['⌘Z / ⇧⌘Z', 'Undo'], ['?', 'Help']]
 

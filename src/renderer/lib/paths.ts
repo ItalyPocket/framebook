@@ -28,22 +28,6 @@ export async function projectFileUrl(
   return url
 }
 
-/** Turn an absolute PNG path into a blob URL (for extracted frame previews). */
-const absCache = new Map<string, string>()
-export async function absFileUrl(folder: string, absPath: string, mime = 'image/png'): Promise<string> {
-  const cached = absCache.get(absPath)
-  if (cached) return cached
-  // absPath is inside the project temp area; read it through readProjectFile
-  // by making it project-relative when possible, else read via a data path.
-  // For extracted frames we always keep them under the project folder's
-  // .frames cache, so compute the relative segment.
-  const rel = absPath.startsWith(folder) ? absPath.slice(folder.length).replace(/^[/\\]/, '') : absPath
-  const buf = await window.sbr.readProjectFile(folder, rel)
-  const url = URL.createObjectURL(new Blob([buf], { type: mime }))
-  absCache.set(absPath, url)
-  return url
-}
-
 export function mimeForMedia(name: string): string {
   const ext = name.toLowerCase().split('.').pop() ?? ''
   switch (ext) {

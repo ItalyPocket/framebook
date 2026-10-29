@@ -6,7 +6,7 @@
  */
 
 import { useStore, currentProjectJson } from './store'
-import { ensureStill, generatePrompt, buildExportInputs, audioAbsPath } from './lib/frameOps'
+import { ensureStill, buildExportInputs, audioAbsPath } from './lib/frameOps'
 import type { RangeMode } from '../preload/index'
 import type { ShotMeta } from '@shared/types'
 
@@ -116,17 +116,8 @@ async function execute(action: string, params: Params): Promise<unknown> {
       return { ok: true }
     }
 
-    case 'describe_frame': {
-      requireDoc()
-      const frameId = str(params, 'frameId')
-      if (!frameId) throw new Error('frameId is required.')
-      const profileId = str(params, 'profileId') ?? s.doc?.settings.defaultProfileId ?? 'midjourney'
-      const res = await generatePrompt(frameId, profileId, str(params, 'context') ?? '')
-      if (!res.ok) throw new Error(res.error ?? 'describe failed')
-      await saveNow()
-      const f = useStore.getState().frame(frameId)
-      return { prompt: f?.prompt?.text ?? '' }
-    }
+    case 'describe_frame':
+      throw new Error('AI features are temporarily disabled.')
 
     case 'extract_frame': {
       requireDoc()

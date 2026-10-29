@@ -18,7 +18,6 @@ import { resolveFfmpeg, run } from './ffmpeg'
 import { slugLabel, emptyShotMeta } from '../shared/types'
 import type { Crop } from '../shared/types'
 import type { ExportFrameInput } from '../shared/exports'
-export type { ExportFrameInput } from '../shared/exports'
 
 /**
  * Each frame's `sourcePng` is a full-resolution still with any annotations
@@ -117,7 +116,7 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
     }
     stillPaths.push(stillOut)
 
-    await writeFile(join(dir, 'prompt.txt'), f.promptText || '', 'utf-8')
+    if (f.promptText) await writeFile(join(dir, 'prompt.txt'), f.promptText, 'utf-8')
 
     promptsJson.push({
       index: i + 1,
@@ -141,7 +140,7 @@ export async function exportBoard(input: ExportInput): Promise<ExportOutput> {
     if (f.promptText) mdLines.push('```', f.promptText, '```', '')
   }
 
-  await writeFile(
+  if (input.frames.some((frame) => frame.promptText)) await writeFile(
     join(pkg, 'prompts.json'),
     JSON.stringify({ project: input.projectName, exportedAt: st, frames: promptsJson }, null, 2),
     'utf-8'

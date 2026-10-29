@@ -24,7 +24,6 @@ import {
   fullCrop,
   newId
 } from '@shared/schema'
-import { DEFAULT_PROFILE_ID } from '@shared/profiles'
 import { absMediaPath } from './lib/paths'
 
 export interface Toast {
@@ -72,8 +71,6 @@ interface SbrState {
   helpOpen: boolean
   /** Cache of extracted full-res stills, keyed by frame id (for crop + export). */
   stills: Record<string, ExtractedStill>
-  /** True while a batch prompt run is in flight. */
-  promptingAll: boolean
 
   /* ephemeral view/tool state (not part of the saved document) */
   /** Center stage shows the selected frame ('frame') or the clip ('clip'). */
@@ -123,8 +120,6 @@ interface SbrState {
   setFrameNotes(frameId: string, notes: string): void
   setFrameCrop(frameId: string, crop: Crop | null): void
   setFrameCropAspect(frameId: string, aspect: CropAspect | null): void
-  setFramePrompt(frameId: string, text: string, profileId: string, model: string): void
-  setDefaultProfile(id: string): void
   setFrameDuration(frameId: string, durationS: number): void
   setFrameShot(frameId: string, patch: Partial<ShotMeta>): void
   addAnnotation(frameId: string, annotation: Omit<Annotation, 'id'> & { id?: string }): Annotation
@@ -139,7 +134,6 @@ interface SbrState {
   /* misc */
   toast(text: string, kind?: Toast['kind']): void
   dismissToast(id: string): void
-  setPromptingAll(on: boolean): void
 }
 
 let toastSeq = 0
@@ -158,7 +152,6 @@ export const useStore = create<SbrState>((set, get) => ({
   toasts: [],
   helpOpen: false,
   stills: {},
-  promptingAll: false,
   viewMode: 'clip',
   annotTool: 'none',
   annotColor: '#ff5533',
@@ -496,17 +489,6 @@ export const useStore = create<SbrState>((set, get) => ({
       } else f.crop = fullCrop(aspect)
     })
   },
-  setFramePrompt(frameId, text, profileId, model) {
-    get().mutate('prompt', (doc) => {
-      const f = doc.frames.find((x) => x.id === frameId)
-      if (f) f.prompt = { text, profileId, generatedAt: new Date().toISOString(), model }
-    })
-  },
-  setDefaultProfile(id) {
-    get().mutate('default profile', (doc) => {
-      doc.settings.defaultProfileId = id
-    })
-  },
   setFrameDuration(frameId, durationS) {
     const clamped = Math.max(0.25, Math.min(30, isFinite(durationS) ? durationS : 2))
     get().mutate('duration', (doc) => {
@@ -569,8 +551,7 @@ export const useStore = create<SbrState>((set, get) => ({
   },
   dismissToast(id) {
     set({ toasts: get().toasts.filter((t) => t.id !== id) })
-  },
-  setPromptingAll: (on) => set({ promptingAll: on })
+  }
 }))
 
 /** Serialize the current doc (or null if none). */
@@ -579,7 +560,6 @@ export function currentProjectJson(): string | null {
   return doc ? serializeProject(doc) : null
 }
 
-export { DEFAULT_PROFILE_ID }
 
 function sortFrames(doc: Project): void {
   const positions = new Map(doc.media.map((media, index) => [media.id, index]))

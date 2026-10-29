@@ -1,12 +1,5 @@
-/**
- * Frame operations shared by the UI and the agent control handler: extract a
- * full-res still for a frame (cached), generate a prompt via Claude, and build
- * the export input. Keeping these here means the automation surface and the
- * buttons run the exact same code.
- */
 
 import { useStore } from '../store'
-import { getProfile } from '@shared/profiles'
 import { renderAnnotationsSvg, annotationsHash } from '@shared/annotations'
 import type { Frame } from '@shared/types'
 import type { ExportFrameInput } from '../../preload/index'
@@ -55,20 +48,6 @@ async function extractStill(frameId: string, snapshot?: Frame): Promise<string |
   if (useStore.getState().projectFolder !== s.projectFolder) return null
   useStore.getState().setStill(frameId, { path: outPng, width: media.width, height: media.height })
   return outPng
-}
-
-/** Generate a Claude prompt for a frame; returns ok/error. */
-export async function generatePrompt(
-  frameId: string,
-  profileId: string,
-  extraContext = ''
-): Promise<{ ok: boolean; error?: string }> {
-  const still = await ensureStill(frameId)
-  if (!still) return { ok: false, error: 'Could not extract the frame image.' }
-  const result = await window.sbr.describeFrame(still, profileId, extraContext)
-  if (!result.ok) return { ok: false, error: result.error }
-  useStore.getState().setFramePrompt(frameId, result.description.promptText, profileId, 'claude-opus-4-8')
-  return { ok: true }
 }
 
 /** Load an image element from a src (blob/data URL). */
@@ -154,22 +133,4 @@ export function audioAbsPath(): string | null {
   if (!rel || !s.projectFolder) return null
   const sep = s.projectFolder.includes('\\') ? '\\' : '/'
   return `${s.projectFolder}${sep}${rel.replace(/[/\\]/g, sep)}`
-}
-
-/** Offline template prompt for a frame using its metadata + dropdown fields. */
-export function templatePrompt(
-  frame: Frame,
-  profileId: string,
-  fields: { shotSize: string; cameraAngle: string; lighting: string; mood: string }
-): string {
-  const profile = getProfile(profileId)
-  return profile.formatPrompt({
-    label: frame.label,
-    notes: frame.notes,
-    shotSize: fields.shotSize,
-    cameraAngle: fields.cameraAngle,
-    lighting: fields.lighting,
-    mood: fields.mood,
-    aspect: frame.crop?.aspect ?? null
-  })
 }

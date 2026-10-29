@@ -8,6 +8,9 @@
 
 > **Latest release: 2.5.1 · Apple Silicon Mac.** [Download the DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1). Screenshots below were captured in 2.5.0.
 
+
+> Source version 2.5.2 temporarily disables AI features; the published 2.5.1 installer predates this change.
+
 ## From reference to shooting plan
 
 **Capture → Gallery → Storyboard → Shooting plan → Call sheet**
@@ -51,7 +54,7 @@ Build scene groups around the same shot references. Each group carries its own d
 - Imports are copied into the `.sbref` project package by default. External references are optional; ZIP sharing collects linked assets into a portable copy.
 - Chinese/English UI, configurable intro/transition effects and reduced-motion support.
 
-Core capture and editing workflows run locally. Optional AI description requires separate credentials and sends selected imagery to its provider. Do not publish private footage or project packages in this source repository.
+Capture, editing and export run locally. AI features are temporarily disabled and their controls are hidden. Existing prompt data remains readable in older projects. Do not publish private footage or project packages in this source repository.
 
 ## Develop
 
@@ -69,7 +72,7 @@ npm run build
 npm run package
 ```
 
-The Apple Silicon DMG is written to `release/`. FFmpeg is bundled. Current builds are not Apple Developer ID signed or notarized. End-to-end capture tests additionally need `ffmpeg` and `ffprobe` on PATH.
+The Apple Silicon DMG is written to `release/`. FFmpeg is bundled. Current builds are not Apple Developer ID signed or notarized. Capture smoke tests use the bundled FFmpeg.
 
 ## Support Framebook
 

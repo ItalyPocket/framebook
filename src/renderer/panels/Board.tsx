@@ -1,14 +1,9 @@
 import { t } from '@shared/i18n'
-/**
- * Bottom board: horizontal strip of frame cards in order. Drag to reorder,
- * click to select, ⌫ to remove (confirm if it has a prompt). "Prompt all
- * missing" and "Export board" with running counts.
- */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore, currentProjectJson } from '../store'
 import { useAbsUrl } from '../lib/useMediaUrl'
-import { ensureStill, generatePrompt, buildExportInputs, audioAbsPath } from '../lib/frameOps'
+import { ensureStill, buildExportInputs, audioAbsPath } from '../lib/frameOps'
 import { renderAnnotationsSvg } from '@shared/annotations'
 import type { Frame } from '@shared/types'
 
@@ -26,7 +21,7 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
     (e: React.MouseEvent) => {
       e.stopPropagation()
       if (frame.prompt && frame.prompt.text) {
-        if (!window.confirm(t("This frame has a prompt. Remove it from the board?"))) return
+        if (!window.confirm(t("Remove this frame and its saved data?"))) return
       }
       removeFrame(frame.id)
       const json = currentProjectJson()
@@ -72,7 +67,6 @@ function BoardCard({ frame, index }: { frame: Frame; index: number }): JSX.Eleme
         <div className="board-card-label" title={frame.label}>{frame.label || t("(untitled)")}</div>
         <div className="board-card-meta">
           <span className="board-index">{String(index + 1).padStart(2, '0')}</span>
-          <span className={`dot ${frame.prompt?.text ? 'has-prompt' : ''}`} title={frame.prompt?.text ? t("Has prompt") : t("No prompt")} />
         </div>
       </div>
     </div>
@@ -86,9 +80,6 @@ export function Board(): JSX.Element {
   const frames = useMemo(() => [...(rawFrames ?? [])].sort((a, b) => a.order - b.order), [rawFrames])
   const folder = useStore((s) => s.projectFolder)
   const projectName = useStore((s) => s.doc?.name ?? t("Storyboard"))
-  const defaultProfile = useStore((s) => s.doc?.settings.defaultProfileId ?? 'midjourney')
-  const promptingAll = useStore((s) => s.promptingAll)
-  const setPromptingAll = useStore((s) => s.setPromptingAll)
   const setPresentOpen = useStore((s) => s.setPresentOpen)
   const toast = useStore((s) => s.toast)
   const [exporting, setExporting] = useState(false)
@@ -103,30 +94,6 @@ export function Board(): JSX.Element {
     window.addEventListener('mousedown', onDown)
     return () => window.removeEventListener('mousedown', onDown)
   }, [exportMenu])
-
-  const withPrompt = frames.filter((f) => f.prompt?.text).length
-  const missing = frames.length - withPrompt
-
-  const onPromptAll = useCallback(async () => {
-    setPromptingAll(true)
-    let done = 0
-    let failed = 0
-    for (const f of frames) {
-      if (f.prompt?.text) continue
-      const res = await generatePrompt(f.id, f.prompt?.profileId ?? defaultProfile, f.notes)
-      if (res.ok) done++
-      else {
-        failed++
-        toast(res.error ?? t("Prompt failed"), 'error')
-        break // stop on first hard failure (usually auth) to avoid a wall of toasts
-      }
-    }
-    setPromptingAll(false)
-    const json = currentProjectJson()
-    if (json && folder) await window.sbr.saveProject(folder, json)
-    if (done) toast(t('Generated {count} prompts.', { count: done }), 'success')
-    if (!done && !failed) toast(t("All frames already have prompts."), 'info')
-  }, [frames, defaultProfile, folder, setPromptingAll, toast])
 
   const runExport = useCallback(
     async (kind: 'board' | 'animatic' | 'pdf' | 'shotlist') => {
@@ -166,14 +133,12 @@ export function Board(): JSX.Element {
     <div className="board">
       <div className="board-bar">
         <span className="panel-title" style={{ margin: 0 }}>{t("Frame gallery")}</span>
-        <span className="board-count">{frames.length} {t("frames ·")}{withPrompt} {t("prompted ·")}{missing} {t("missing")}</span>
+        <span className="board-count">{frames.length} {t("frames")}</span>
 <button className="btn small" onClick={() => useStore.getState().setWorkspace('gallery')}>{t('Open gallery')} ↗</button>
         <div style={{ flex: 1 }} />
         <button className="btn small" onClick={() => setPresentOpen(true)} disabled={frames.length === 0} title={t("Present / play the board (P)")}>
           {t("▶ Present")}</button>
-        <button className="btn small" onClick={onPromptAll} disabled={promptingAll || missing === 0}>
-          {promptingAll ? t("Prompting…") : t("Prompt all missing")}
-        </button>
+
         <button className="btn small primary" onClick={onExport} disabled={exporting || frames.length === 0}>
           {exporting ? t("Exporting…") : t("Export board")}
         </button>

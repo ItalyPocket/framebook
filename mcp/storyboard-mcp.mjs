@@ -90,21 +90,6 @@ const TOOLS = [
     }
   },
   {
-    name: 'describe_frame',
-    description:
-      'Generate a per-frame prompt with Claude vision for the target generator profile (midjourney, flux, gpt-image, nano-banana, sdxl, generic). Returns the prompt text. Requires Claude credentials.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        frameId: { type: 'string', description: 'A frame id from get_state.' },
-        profileId: { type: 'string', description: 'Generator profile id. Defaults to the project default.' },
-        context: { type: 'string', description: 'Optional extra context for the model.' }
-      },
-      required: ['frameId'],
-      additionalProperties: false
-    }
-  },
-  {
     name: 'extract_frame',
     description: 'Ensure a full-resolution still PNG exists on disk for a frame and return its absolute path.',
     inputSchema: {

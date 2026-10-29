@@ -134,28 +134,22 @@ test('sets a crop on the first frame', async () => {
   expect(ok).toBe(true)
 })
 
-test('describe without credentials returns a structured friendly error', async () => {
-  const res = await page.evaluate(async () => {
-    const s = (window as unknown as { __sbr: { store: any } }).__sbr.store.getState()
-    const first = s.orderedFrames()[0]
-    // ensureStill then describe directly through IPC (offline path).
-    const still = `${s.projectFolder}/.frames/${first.id}.png`
-    await window.sbr.extractFrame(s.mediaAbsPath(first.mediaId), first.timeS, still)
-    return await window.sbr.describeFrame(still, 'midjourney', '')
-  })
-  expect(res.ok).toBe(false)
-  expect(typeof res.error).toBe('string')
-  expect(res.error.length).toBeGreaterThan(0)
+test('AI generation remains disabled through the compatibility interface', async () => {
+  const res = await page.evaluate(() => window.sbr.describeFrame('/not-a-frame.png', 'midjourney', ''))
+  expect(res).toEqual({ ok: false, error: 'AI features are temporarily disabled.' })
+  await expect(page.getByRole('button', { name: /Generate prompt|Prompt all missing|Build template prompt/ })).toHaveCount(0)
+  await expect(page.getByText('Generator profile', { exact: true })).toHaveCount(0)
 })
 
-test('offline template prompt fills from metadata', async () => {
-  // Store a template-derived prompt so export has a prompt.txt to write.
+test('legacy prompt data survives project serialization', async () => {
   const text = await page.evaluate(() => {
     const s = (window as unknown as { __sbr: { store: any } }).__sbr.store.getState()
     const first = s.orderedFrames()[0]
     s.setFrameLabel(first.id, 'HERO ENTERS')
-    s.setFramePrompt(first.id, 'wide shot, hero enters, cinematic still --ar 1:1 --style raw', 'midjourney', 'template')
-    return s.frame(first.id).prompt.text
+    s.mutate('legacy data', (doc: any) => { doc.frames[0].prompt = { text: 'wide shot, hero enters, cinematic still --ar 1:1 --style raw', profileId: 'midjourney', model: 'template', generatedAt: '2026-07-19T00:00:00.000Z' } })
+    const json = JSON.stringify((window as unknown as { __sbr: { store: any } }).__sbr.store.getState().doc)
+    if (!s.loadFromJson(s.projectFolder, json)) throw new Error('Could not reload legacy data')
+    return (window as unknown as { __sbr: { store: any } }).__sbr.store.getState().frame(first.id).prompt.text
   })
   expect(text).toContain('hero enters')
 })

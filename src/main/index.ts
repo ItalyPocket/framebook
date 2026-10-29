@@ -1,8 +1,7 @@
 import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../shared/i18n'
 /**
  * Electron main process: window lifecycle, project folder I/O, media import
- * (copy into media/ + ffprobe), ffmpeg frame extraction, Claude prompt
- * generation, and board export. All filesystem + subprocess access lives here;
+ * (copy into media/ + ffprobe), ffmpeg frame extraction, and board export. All filesystem + subprocess access lives here;
  * the renderer talks through the typed IPC surface in src/preload.
  */
 
@@ -313,12 +312,7 @@ ipcMain.handle(
   }
 )
 
-/* ---------------------------- AI description ---------------------------- */
-
-ipcMain.handle('ai:describeFrame', async (_e, framePngPath: string, profileId: string, extraContext: string) => {
-  const { describeFrame } = await import('./describe')
-  return describeFrame(framePngPath, profileId, extraContext)
-})
+ipcMain.handle('ai:describeFrame', async () => ({ ok: false, error: t('AI features are temporarily disabled.') }))
 
 /* -------------------------------- export -------------------------------- */
 

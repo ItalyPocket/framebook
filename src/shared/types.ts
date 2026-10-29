@@ -181,7 +181,6 @@ export const STORY_FIELDS = {
   sound: 'Music / sound', notes: 'Analysis notes'
 } as const
 
-export type StoryField = keyof typeof STORY_FIELDS
 export type StoryColumnType = 'text' | 'number' | 'single' | 'multi' | 'date' | 'checkbox' | 'image'
 export interface StoryColumn {
   id: string

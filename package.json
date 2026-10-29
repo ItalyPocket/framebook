@@ -1,7 +1,7 @@
 {
   "name": "framebook",
   "productName": "帧册",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "Framebook — capture, study and arrange your shots. 帧册：静帧截取与分镜分析。",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",
@@ -18,7 +18,6 @@
     "package": "npm run build && electron-builder --mac --config electron-builder.yml"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
     "ffmpeg-static": "^5.2.0",
     "pdfjs-dist": "4.10.38",
     "react": "^18.3.1",

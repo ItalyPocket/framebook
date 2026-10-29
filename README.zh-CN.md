@@ -8,6 +8,9 @@
 
 > **最新版本：2.5.1 · Apple Silicon Mac。** [下载 DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1)。下方截图摄于 2.5.0。
 
+
+> 当前源码 2.5.2 暂停 AI 功能；已发布的 2.5.1 安装包尚未包含此调整。
+
 ## 从参考画面到拍摄计划
 
 **截帧工作台 → 静帧画廊 → 分镜本 → 拍摄计划 → 拍摄通告**
@@ -51,7 +54,7 @@
 - 默认将素材复制进 `.sbref` 项目包；也可使用外部引用，通过 ZIP 分享时收集素材，生成可移动副本。
 - 提供中英文界面、开屏与过渡效果设置，以及减少动态效果支持。
 
-核心截帧与编辑在本地运行。可选 AI 描述需要另行配置凭据，并会将选定画面发送至服务提供方。请勿将私人素材与项目包提交到源码仓库。
+截帧、编辑与导出在本地运行。AI 功能暂未启用，相关操作入口已隐藏；旧项目中的提示词数据仍保留兼容。请勿将私人素材与项目包提交到源码仓库。
 
 ## 从源码运行
 
@@ -69,7 +72,7 @@ npm run build
 npm run package
 ```
 
-Apple Silicon DMG 输出至 `release/`，自带 FFmpeg。当前构建没有 Apple Developer ID 签名和公证。截帧端到端验证还需要 PATH 中的 `ffmpeg`、`ffprobe`。
+Apple Silicon DMG 输出至 `release/`，自带 FFmpeg。当前构建没有 Apple Developer ID 签名和公证。核心截帧验证使用项目自带的 FFmpeg。
 
 ## 支持帧册
 

@@ -26,7 +26,7 @@ const MAX_BODY = 10 * 1024 * 1024 // 10 MB
 
 function timeoutForAction(action: string): number {
   if (action === 'export_board' || action === 'export_animatic' || action === 'export_pdf') return 600_000
-  if (action === 'describe_frame' || action === 'auto_board') return 300_000
+  if (action === 'auto_board') return 300_000
   if (action === 'screenshot' || action === 'extract_frame') return 120_000
   return 30_000
 }

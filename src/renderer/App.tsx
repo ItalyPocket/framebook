@@ -228,7 +228,7 @@ function useKeyboard(enabled: boolean): void {
         }
         if (s.selectedFrameId) {
           const frame = s.frame(s.selectedFrameId)
-          if (frame?.prompt?.text && !window.confirm(t('This frame has a prompt. Remove it?')))
+          if (frame?.prompt?.text && !window.confirm(t('Remove this frame and its saved data?')))
             return
           s.removeFrame(s.selectedFrameId)
           const json = currentProjectJson()
