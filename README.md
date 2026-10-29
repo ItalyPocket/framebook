@@ -1,24 +1,60 @@
-# 帧册 / Framebook
+![Framebook — Capture. Study. Arrange.](docs/images/hero.svg)
 
-面向 Apple Silicon Mac 的静帧截取、拉片分析、分镜本与拍摄计划工具。
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-## 使用
+**A visual workspace for frame analysis, storyboards and shooting preparation on Apple Silicon Mac.**
 
-从[发布页](https://github.com/ItalyPocket/framebook/releases)下载 DMG。项目库管理本机项目；右上角搜索图标展开搜索。左上角项目名可直接重命名。
+[Download DMG](https://github.com/ItalyPocket/framebook/releases) · [Report an issue](https://github.com/ItalyPocket/framebook/issues) · [Support the project](docs/SUPPORT.md)
 
-- 工作台：导入或拖入 MP4、MOV、图片，逐帧查看并截取静帧。
-- 画廊：调整静帧顺序、批量命名及导出。
-- 分镜本：一镜多图、自定义字段与选项，支持横竖版 PDF 和 CSV 预览导出。
-- 拍摄计划：按场景、日期时间、地点分组安排镜头，独立设置显示列；分镜字段双向同步，负责人及拍摄耗时独立填写。
-- 拍摄通告：单独编辑各组集合、人员、器材和紧急联系信息。
+> This page describes the 2.5.0 source. The currently published installer is **2.3.1**, marked as a prerelease. Features and screenshots below may differ from that installer; use the source build for 2.5.0.
 
-设置管理项目目录、自动保存、恢复副本、素材内嵌、导出目录、开屏和动画。默认每 60 秒自动保存，保留 5 份数据恢复副本。项目包默认包含导入素材，也可使用外部引用并通过 ZIP 打包分享。
+## From reference to shooting plan
 
-版本 7 兼容旧项目，迁移拍摄日到计划分组并保留旧条次数据。界面提供中文和英文，支持系统减少动态效果。
+**Capture → Gallery → Storyboard → Shooting plan → Call sheet**
 
-## 开发
+Bring in a clip, collect the frames that matter, shape them into shots, and arrange the shoot without losing the visual reference.
 
-需要 Node.js 22+。
+| Workspace | What you can do |
+| --- | --- |
+| Capture | Import or drop MP4/MOV and images; inspect video frame by frame and capture stills. |
+| Gallery | Reorder frames, batch-name exports and build single-image or multi-image shots. |
+| Storyboard | Edit text, numbers and selectable fields; customize columns and options; calculate shot durations. |
+| Shooting plan | Group shots by scene, date/time and location; choose visible columns and arrange shooting order. |
+| Call sheet | Keep meeting details, crew, equipment and emergency contacts in a separate workspace. |
+
+## Your shots, your table
+
+Multiple reference images per shot, editable columns and reusable options keep the storyboard close to your process. Storyboard fields stay linked to the shooting plan; production timing is separate from screen duration.
+
+![Storyboard with multiple shots and custom fields](docs/images/storyboard.jpg)
+
+## Collect first, arrange next
+
+The gallery holds your stills before they become a storyboard. Drag files into the app, adjust order, and export a named sequence.
+
+![Still-frame gallery](docs/images/gallery.jpg)
+
+## Prepare the shoot visually
+
+Build scene groups around the same shot references. Each group carries its own date, location and schedule; the plan can show only the fields you need.
+
+![Grouped shooting plan](docs/images/planning.jpg)
+
+*Screenshots show the English 2.5.0 interface with original illustrated demo frames, not user footage. Chinese is also available in the app.*
+
+## Preview, save and move projects
+
+- Preview storyboard PDF/CSV and still exports before confirming. Storyboard PDF supports landscape and portrait A4.
+- Use the in-app project library, inline project renaming and configurable save/export folders.
+- Autosave defaults to 60 seconds with five data recovery copies; both are configurable.
+- Imports are copied into the `.sbref` project package by default. External references are optional; ZIP sharing collects linked assets into a portable copy.
+- Chinese/English UI, configurable intro/transition effects and reduced-motion support.
+
+Core capture and editing workflows run locally. Optional AI description requires separate credentials and sends selected imagery to its provider. Do not publish private footage or project packages in this source repository.
+
+## Develop
+
+Node.js 22+ and a macOS desktop are required.
 
 ```sh
 npm ci
@@ -32,8 +68,12 @@ npm run build
 npm run package
 ```
 
-安装包输出到 `release/`，自带 ffmpeg。当前构建没有 Apple Developer ID 签名和公证。端到端验证需要可启动 Electron 的 macOS 桌面环境，截帧测试还需要 PATH 中的 ffmpeg、ffprobe。
+The Apple Silicon DMG is written to `release/`. FFmpeg is bundled. Current builds are not Apple Developer ID signed or notarized. End-to-end capture tests additionally need `ffmpeg` and `ffprobe` on PATH.
 
-## 来源与许可
+## Support Framebook
 
-原作 [Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio)：Sam Wasserman ([wassermanproductions.com](https://wassermanproductions.com))。帧册改版：ItalyPocket。完整许可与声明见 [LICENSE](LICENSE)、[NOTICE](NOTICE)。
+Bug reports, clear reproduction steps and translation improvements help the project. Financial sponsorship is **not open yet** while fiscal hosting is being arranged. See [support information](docs/SUPPORT.md); a verified payment link will be added when available.
+
+## Credits and license
+
+Framebook is developed by ItalyPocket from [Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio) by Sam Wasserman. Distributed under Apache-2.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
