@@ -1,3 +1,4 @@
+import { LibTVConnection } from './LibTV'
 import { SearchControl } from './SearchControl'
 import { useEffect, useState } from 'react'
 import { parseProject } from '@shared/schema'
@@ -39,7 +40,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
     </label>
   )
   const check = (
-    key: 'autosave' | 'copyMedia' | 'askStoryboard' | 'askFrames' | 'simplifyAnimations',
+    key: 'autosave' | 'copyMedia' | 'askStoryboard' | 'askFrames' | 'simplifyAnimations' | 'askLibTV',
     label: string
   ): JSX.Element => (
     <label className="setting-check">
@@ -151,6 +152,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
               {path('framesRoot', 'Frame export location')}
               {check('askFrames', 'Ask for frame export location each time')}
               <h3>{t('Media storage')}</h3>
+              {check('askLibTV', 'Choose LibTV project for every upload')}
               {check('copyMedia', 'Copy imported media into project')}
               <p className="hint">
                 {t(
@@ -164,6 +166,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
           (doc && folder ? (
             <section className="project-settings-content">
               <h3>{doc.name}</h3>
+              <LibTVConnection />
               <p className="hint">
                 {t('Rename the project by clicking its name in the top left.')}
               </p>

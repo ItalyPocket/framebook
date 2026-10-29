@@ -67,7 +67,7 @@ test('creates a project and imports the test clip', async () => {
   await page.getByRole('button', { name: 'New Project', exact: true }).click()
   await page.getByRole('textbox', { name: 'Project name', exact: true }).fill('Smoke')
   await page.getByRole('dialog').getByRole('button', { name: 'New Project', exact: true }).click()
-  await expect(page.locator('.workspace')).toBeVisible()
+  await expect(page.locator('.dock-capture')).toBeVisible()
 
   const mediaCount = await page.evaluate(async (clip) => {
     const w = window as unknown as { __sbr: { store: any } }

@@ -94,6 +94,7 @@ export interface Frame {
 }
 
 export interface ProjectSettings {
+  libtv?: import('./libtv').LibTVTarget
   gallerySort: 'time' | 'manual'
   defaultProfileId: string
   /** Project-relative path to an imported scratch-track audio in media/. */

@@ -14,6 +14,7 @@ export interface AppSettings {
   introDuration: 'short' | 'full'
   motionStyle: 'standard' | 'cinematic'
   simplifyAnimations: boolean
+  askLibTV: boolean
   copyMedia: boolean
 }
 export interface ProjectEntry {

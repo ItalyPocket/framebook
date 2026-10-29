@@ -1,3 +1,4 @@
+import { setupLibTV } from './libtv'
 import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../shared/i18n'
 /**
  * Electron main process: window lifecycle, project folder I/O, media import
@@ -78,6 +79,7 @@ app.whenReady().then(() => {
   })
   setupWorkspace()
   setupPreviews()
+  setupLibTV(resolveReadablePath)
   createWindow()
   void startControlServer(() => mainWindow)
   app.on('activate', () => {
@@ -289,7 +291,7 @@ ipcMain.handle('shell:showFolder', async (_e, path: string) => {
   shell.showItemInFolder(path)
 })
 
-const EXTERNAL_LINK_ALLOWLIST = new Set(['wassermanproductions.com', 'wasserman.ai', 'github.com'])
+const EXTERNAL_LINK_ALLOWLIST = new Set(['wassermanproductions.com', 'wasserman.ai', 'github.com', 'liblib.tv'])
 
 ipcMain.handle('shell:openExternal', async (_e, url: string) => {
   const parsed = new URL(url)
@@ -383,3 +385,10 @@ async function resolveReadablePath(folder: string, path: string): Promise<string
     throw new Error('File is not registered in this project')
   }
 }
+
+ipcMain.handle('media:reveal', async (_e, folder: string, id: string) => {
+  const project = JSON.parse(await readFile(join(folder, 'project.json'), 'utf8'))
+  const media = project.media.find((item: { id: string }) => item.id === id)
+  if (!media) throw new Error('Media not found. Save the project first.')
+  shell.showItemInFolder(await resolveReadablePath(folder, media.externalPath ?? media.sourceFile))
+})

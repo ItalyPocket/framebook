@@ -9,7 +9,7 @@
 > **Latest release: 2.5.1 · Apple Silicon Mac.** [Download the DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1). Screenshots below were captured in 2.5.0.
 
 
-> Source version 2.5.2 temporarily disables AI features; the published 2.5.1 installer predates this change.
+> Source version 2.6.0 temporarily disables AI features; the published 2.5.1 installer predates this change.
 
 ## From reference to shooting plan
 

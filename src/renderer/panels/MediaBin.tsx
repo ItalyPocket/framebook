@@ -22,10 +22,12 @@ function isAudioPath(p: string): boolean {
 function BinItem({
   item,
   selected,
-  onSelect
+  onSelect,
+  onMenu
 }: {
   item: MediaItem
   selected: boolean
+  onMenu(event: React.MouseEvent | React.KeyboardEvent): void
   onSelect(event: React.MouseEvent): void
 }): JSX.Element {
   const url = useMediaUrl(item)
@@ -40,9 +42,11 @@ function BinItem({
       role="button"
       aria-pressed={selected}
       onKeyDown={(event) => {
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) onMenu(event)
         if (event.key === 'Enter') useStore.getState().selectMedia(item.id)
       }}
       className={`bin-item ${active ? 'active' : ''} ${selected ? 'selected' : ''}`}
+      onContextMenu={onMenu}
       onClick={onSelect}
     >
       {item.kind === 'video' ? (
@@ -98,6 +102,11 @@ function BinItem({
 }
 
 export function MediaBin(): JSX.Element {
+  const [context, setContext] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [rename, setRename] = useState<{ id: string; name: string } | null>(null)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [orientation, setOrientation] = useState('all')
+  const [storage, setStorage] = useState('all')
   const [kind, setKind] = useState<'all' | 'video' | 'image'>('all')
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -217,6 +226,12 @@ export function MediaBin(): JSX.Element {
     })
     setSelected([])
   }
+  const visibleMedia = doc?.media.filter((item) =>
+    (kind === 'all' || item.kind === kind) &&
+    (orientation === 'all' || (orientation === 'landscape' ? item.width > item.height : orientation === 'portrait' ? item.height > item.width : item.width === item.height)) &&
+    (storage === 'all' || (storage === 'external') === !!item.externalPath) &&
+    (search ? item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()) : (item.folderId ?? null) === currentFolder)
+  ) ?? []
   return (
     <div className="bin panel" data-import-folder={currentFolder ?? ''}>
       <div className="bin-actions">
@@ -236,19 +251,18 @@ export function MediaBin(): JSX.Element {
         </button>
       </div>
       <div className="media-filters">
-        {(['all', 'video', 'image'] as const).map((value) => (
-          <button
-            key={value}
-            className={kind === value ? 'active' : ''}
-            onClick={() => setKind(value)}
-          >
-            {t({ all: 'All', video: 'Videos', image: 'Images' }[value])}
-          </button>
-        ))}
-        <button aria-label={t('Toggle media view')} onClick={() => setGrid(!grid)}>
-          {grid ? '☷' : '▦'}
-        </button>
+        <button className={filterOpen || kind !== 'all' || orientation !== 'all' || storage !== 'all' ? 'active' : ''} aria-label={t('Filter media')} title={t('Filter media')} onClick={() => setFilterOpen(!filterOpen)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 4h18l-7 8v7l-4 2v-9z" /></svg></button>
+        <div className="media-view-switch" role="group" aria-label={t('View')}>
+          <button aria-pressed={grid} title={t('Thumbnails')} aria-label={t('Thumbnails')} onClick={() => setGrid(true)}>▦</button>
+          <button aria-pressed={!grid} title={t('List')} aria-label={t('List')} onClick={() => setGrid(false)}>☷</button>
+        </div>
       </div>
+      {filterOpen && <div className="media-filter-panel">
+        <label>{t('Type')}<select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>{['all','video','image'].map((v) => <option key={v} value={v}>{t({all:'All',video:'Videos',image:'Images'}[v]!)}</option>)}</select></label>
+        <label>{t('Orientation')}<select value={orientation} onChange={(e) => setOrientation(e.target.value)}>{['all','landscape','portrait','square'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
+        <label>{t('Storage')}<select value={storage} onChange={(e) => setStorage(e.target.value)}>{['all','internal','external'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
+        <button className="text-button" onClick={() => { setKind('all'); setOrientation('all'); setStorage('all') }}>{t('Clear filters')}</button>
+      </div>}
       <SearchControl label="Search media" value={search} onChange={setSearch} />
       <div
         className="media-breadcrumb"
@@ -314,6 +328,7 @@ export function MediaBin(): JSX.Element {
           </>
         )}
       </div>
+      <div className="hint media-result-count">{visibleMedia.length} {t('results')}</div>
       {!!selected.length && (
         <div className="media-selection">
           <span>
@@ -374,18 +389,16 @@ export function MediaBin(): JSX.Element {
             )}
           </div>
         ) : (
-          doc!.media
-            .filter(
-              (item) =>
-                (kind === 'all' || item.kind === kind) &&
-                (search
-                  ? item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())
-                  : (item.folderId ?? null) === currentFolder)
-            )
+          visibleMedia
             .map((m) => (
               <BinItem
                 key={m.id}
                 item={m}
+                onMenu={(event) => {
+                  event.preventDefault()
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  setContext({ id: m.id, x: 'clientX' in event ? event.clientX : rect.left, y: 'clientY' in event ? event.clientY : rect.bottom })
+                }}
                 selected={selected.includes(m.id)}
                 onSelect={(event) => {
                   if (event.metaKey || event.ctrlKey || event.shiftKey)
@@ -421,6 +434,25 @@ export function MediaBin(): JSX.Element {
           </div>
         )}
       </div>
+      {context && <div className="context-shield" onClick={() => setContext(null)} onContextMenu={(e) => { e.preventDefault(); setContext(null) }}>
+        <div className="floating-menu media-context" role="menu" style={{left: Math.max(8, Math.min(context.x, window.innerWidth - 260)), top: Math.max(8, Math.min(context.y, window.innerHeight - 340))}} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if(e.key === 'Escape') setContext(null); if(e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const items=[...e.currentTarget.querySelectorAll<HTMLElement>('button,select')];const index=items.indexOf(document.activeElement as HTMLElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus() } }}>
+          <button autoFocus onClick={() => { useStore.getState().selectMedia(context.id); setContext(null) }}>{t('Open preview')}</button>
+          <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; setRename({id:item.id,name:item.name}); setContext(null) }}>{t('Rename')}</button>
+          <button onClick={() => { useStore.getState().mutate('duplicate media', (project) => { const item = project.media.find((m) => m.id === context.id); if(item) project.media.push({...item,id:newId('media'),name:`${item.name} ${t('Copy')}`}) }); setContext(null) }}>{t('Duplicate')}</button>
+          <select aria-label={t('Move to folder')} value="" onChange={(e) => { if(e.target.value) { moveMedia([context.id], e.target.value === 'root' ? null : e.target.value); setContext(null) } }}><option value="">{t('Move to folder')}</option><option value="root">{t('Media bin')}</option>{folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select>
+          <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; const json = currentProjectJson(); if(json) void window.sbr.saveProject(folder!,json).then(() => window.sbr.revealMedia(folder!, item.id)).catch((e) => toast(String(e),'error')); setContext(null) }}>{t('Show in Finder')}</button>
+          <button onClick={async () => { const id=context.id;setContext(null);const paths=await window.sbr.importMediaDialog();if(!paths[0] || !folder) return;try { const replacement=await window.sbr.importMedia(folder,paths[0]);const original=doc!.media.find((m) => m.id===id)!;if(replacement.kind!==original.kind) throw new Error(t('Choose the same media type.'));useStore.getState().mutate('relink media',(p) => {for(const item of p.media) if(item.sourceFile===original.sourceFile && item.externalPath===original.externalPath) Object.assign(item,replacement)});useStore.setState({stills:{}}) } catch(e) {toast(String(e),'error')} }}>{t('Relink')}</button>
+          <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; window.dispatchEvent(new CustomEvent('libtv-upload', {detail:{mediaIds:[item.id]}})); setContext(null) }}>{t('Upload to LibTV')}</button>
+          <button onClick={() => {
+            const state = useStore.getState(); const project = state.doc!
+            const count = project.frames.filter((f) => f.mediaId === context.id).length + project.storyboard.shots.filter((shot) => Object.values(shot.cells).some((cell) => Array.isArray(cell) && cell.some((image) => typeof image === 'object' && image !== null && 'frame' in image && image.frame.mediaId === context.id))).length
+            if(count) toast(t('Media is referenced by {count} items.',{count}), 'error')
+            else { state.mutate('remove media', (p) => { p.media = p.media.filter((m) => m.id !== context.id) }); setSelected((ids) => ids.filter((id) => id !== context.id)); if(state.selectedMediaId === context.id) state.selectMedia(null) }
+            setContext(null)
+          }}>{t('Remove from project')}</button>
+        </div>
+      </div>}
+      {rename && <Dialog title={t('Rename')} onClose={() => setRename(null)}><form onSubmit={(e) => { e.preventDefault(); if(!rename.name.trim()) return; useStore.getState().mutate('rename media', (p) => { const item = p.media.find((m) => m.id === rename.id); if(item) item.name = rename.name.trim() }); setRename(null) }}><input autoFocus value={rename.name} onChange={(e) => setRename({...rename,name:e.target.value})} /><button className="btn primary" disabled={!rename.name.trim()}>{t('Save')}</button></form></Dialog>}
       {folderDialog && (
         <Dialog
           title={t(folderDialog.id ? 'Rename folder' : 'New folder')}

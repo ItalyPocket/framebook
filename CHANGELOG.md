@@ -1,5 +1,13 @@
 # 2.5.2 — 清理与 AI 暂停
 
+## 2.6.0
+
+- Preview source videos inside the gallery; seek from stills and grouped timeline markers.
+- Add dock resizing, panel swapping, collapse and saved personal layouts.
+- Add media filters, explicit grid/list controls, context actions and reference-safe removal.
+- Add encrypted LibTV project connections and cancellable, selective-retry uploads without generation. Public upload responses verify resource project ownership; canvas visibility still needs real-account verification.
+
+
 - 隐藏 AI 生成、批量生成及提示词模板入口；停用兼容调用，不读取凭据或发送图像。
 - 移除当前版本的 AI 服务实现及专用依赖；旧提示词数据保持可读取、保存与导出。
 - 清理无调用函数、生成器预设、无用样式和翻译，以及重复截图、过时引用文件。

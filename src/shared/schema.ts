@@ -119,6 +119,7 @@ export function parseProject(json: string): ParseOutcome {
     frames,
     storyboard: sanitizeStoryboard(o.storyboard, frames, issues, typeof o.name === 'string' ? o.name : 'Untitled'),
     settings: {
+      libtv: settings.libtv && typeof settings.libtv === 'object' && typeof (settings.libtv as { projectId?: unknown }).projectId === 'string' ? { projectId: (settings.libtv as { projectId: string }).projectId, name: typeof (settings.libtv as { name?: unknown }).name === 'string' ? (settings.libtv as { name: string }).name : 'LibTV' } : undefined,
       gallerySort: settings.gallerySort === 'time' ? 'time' : 'manual',
       defaultProfileId:
         typeof settings.defaultProfileId === 'string'

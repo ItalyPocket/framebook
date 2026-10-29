@@ -9,7 +9,7 @@
 > **最新版本：2.5.1 · Apple Silicon Mac。** [下载 DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1)。下方截图摄于 2.5.0。
 
 
-> 当前源码 2.5.2 暂停 AI 功能；已发布的 2.5.1 安装包尚未包含此调整。
+> 当前源码 2.6.0 暂停 AI 功能；已发布的 2.5.1 安装包尚未包含此调整。
 
 ## 从参考画面到拍摄计划
 

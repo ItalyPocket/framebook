@@ -1,3 +1,5 @@
+import { RelinkMedia } from '../components/RelinkMedia'
+import { FrameMarkers } from '../components/FrameMarkers'
 import { t } from '@shared/i18n'
 /**
  * Center panel: the viewer. For a video — an HTML5 player with a custom
@@ -44,7 +46,7 @@ function ImageViewer({ media }: { media: MediaItem }): JSX.Element {
   )
 }
 
-function VideoViewer({ media }: { media: MediaItem }): JSX.Element {
+export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem; workspace?: 'capture' | 'gallery' }): JSX.Element {
   const url = useMediaUrl(media)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [time, setTime] = useState(0)
@@ -54,6 +56,17 @@ function VideoViewer({ media }: { media: MediaItem }): JSX.Element {
   const [outS, setOutS] = useState(media.durationS ?? 0)
   const [autoOpen, setAutoOpen] = useState(false)
   const seekTime = useStore((s) => s.seekTime)
+  const activeWorkspace = useStore((s) => s.workspace)
+  useEffect(() => {
+    const video = videoRef.current
+    if (activeWorkspace !== workspace || seekTime === null || !video || video.readyState < 1) return
+    video.pause()
+    setPlaying(false)
+    video.currentTime = Math.max(0, Math.min(seekTime, video.duration || 0))
+    setTime(video.currentTime)
+    useStore.setState({ seekTime: null })
+  }, [seekTime, media.id, activeWorkspace, workspace, url])
+  useEffect(() => { if(activeWorkspace !== workspace) { videoRef.current?.pause(); setPlaying(false) } },[activeWorkspace, workspace])
   const fps = media.fps && media.fps > 1 ? media.fps : 24
 
   const addFrame = useStore((s) => s.addFrame)
@@ -151,7 +164,7 @@ function VideoViewer({ media }: { media: MediaItem }): JSX.Element {
             ref={videoRef}
             src={url}
             onLoadedMetadata={(e) => {
-              if (seekTime !== null) { e.currentTarget.currentTime = seekTime; useStore.setState({ seekTime: null }) }
+              if (activeWorkspace === workspace && seekTime !== null) { e.currentTarget.currentTime = seekTime; useStore.setState({ seekTime: null }) }
               const d = e.currentTarget.duration
               setDuration(d)
               if (!media.durationS) setOutS(d)
@@ -159,7 +172,7 @@ function VideoViewer({ media }: { media: MediaItem }): JSX.Element {
             onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
             onEnded={() => setPlaying(false)}
           />
-        ) : null}
+        ) : <RelinkMedia media={media} />}
       </div>
       <div className="transport">
         <button className="btn small" title={t("Frame back (←)")} onClick={() => step(-1)}>◀|</button>
@@ -172,6 +185,7 @@ function VideoViewer({ media }: { media: MediaItem }): JSX.Element {
           <div className="scrub-track" />
           <div className="scrub-inout" style={{ left: `${(inS / dur) * 100}%`, width: `${((outS - inS) / dur) * 100}%` }} />
           <div className="scrub-fill" style={{ width: `${(time / dur) * 100}%` }} />
+          <FrameMarkers mediaId={media.id} duration={dur} />
           <div className="scrub-playhead" style={{ left: `${(time / dur) * 100}%` }} />
           <div className="scrub-handle in" style={{ left: `${(inS / dur) * 100}%` }} onMouseDown={dragHandle('in')} title={t("IN (I)")} />
           <div className="scrub-handle out" style={{ left: `${(outS / dur) * 100}%` }} onMouseDown={dragHandle('out')} title={t("OUT (O)")} />

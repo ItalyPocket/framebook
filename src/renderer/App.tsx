@@ -1,3 +1,5 @@
+import { LibTVUploads } from './components/LibTV'
+import { DockLayout } from './components/DockLayout'
 import { useLanguage } from './language'
 import { t } from '@shared/i18n'
 /**
@@ -12,7 +14,6 @@ import { useFileDrop } from './lib/fileDrop'
 import { ProjectLibrary, SettingsDialog } from './components/ProjectManager'
 import { ActionLabel, TopAction } from './components/TopActions'
 import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
-import { usePreference } from './components/Controls'
 import { ArtComposition } from './components/ArtComposition'
 import { useStore, currentProjectJson } from './store'
 import { MediaBin } from './panels/MediaBin'
@@ -265,14 +266,6 @@ export function App(): JSX.Element {
     document.documentElement.dataset.simplifyAnimations = String(simplifyAnimations)
   }, [simplifyAnimations])
   const language = useLanguage((s) => s.preference)
-  const [binVisible, setBinVisible] = usePreference('framebook.ui.bin', 'yes', [
-    'yes',
-    'no'
-  ] as const)
-  const [inspectorVisible, setInspectorVisible] = usePreference('framebook.ui.inspector', 'yes', [
-    'yes',
-    'no'
-  ] as const)
   const doc = useStore((s) => s.doc)
   useEffect(() => setHome(false), [doc?.id])
   const workspace = useStore((s) => s.workspace)
@@ -348,6 +341,7 @@ export function App(): JSX.Element {
       {panel === 'library' && (
         <ProjectLibrary searchInitiallyOpen={searchLibrary} onOpened={() => setHome(false)} onClose={() => setPanel(null)} />
       )}
+      <LibTVUploads />
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
     </Fragment>
   )
@@ -444,31 +438,14 @@ export function App(): JSX.Element {
           aria-hidden={workspace !== 'capture'}
         >
           <div
-            className={`capture-layout ${binVisible === 'no' ? 'bin-collapsed' : ''} ${inspectorVisible === 'no' ? 'inspector-collapsed' : ''}`}
+            className="capture-layout"
           >
-            <div className="capture-bar">
-              <button
-                className="text-button"
-                aria-expanded={binVisible === 'yes'}
-                onClick={() => setBinVisible(binVisible === 'yes' ? 'no' : 'yes')}
-              >
-                {t('Media bin')} {binVisible === 'yes' ? '−' : '＋'}
-              </button>
-              <div className="spacer" />
-              <button
-                className="text-button"
-                aria-expanded={inspectorVisible === 'yes'}
-                onClick={() => setInspectorVisible(inspectorVisible === 'yes' ? 'no' : 'yes')}
-              >
-                {t('Frame settings')} {inspectorVisible === 'yes' ? '−' : '＋'}
-              </button>
-            </div>
-            <div className="workspace">
-              <MediaBin />
-              <Viewer />
-              <Inspector />
-              <Board />
-            </div>
+            <DockLayout name="capture" panels={[
+              {id:'media',title:'Media bin',content:<MediaBin />},
+              {id:'viewer',title:'Preview',content:<Viewer />},
+              {id:'inspector',title:'Frame settings',content:<Inspector />},
+              {id:'frames',title:'Frames',content:<Board />}
+            ]} />
           </div>
         </div>
         <div

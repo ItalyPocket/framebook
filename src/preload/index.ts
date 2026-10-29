@@ -1,3 +1,4 @@
+import type { LibTVFile, LibTVJob } from '../shared/libtv'
 /**
  * Typed IPC bridge. The renderer sees exactly this surface as window.sbr —
  * nothing else from Node.
@@ -52,6 +53,15 @@ export interface SbrAPI {
   preparePreview(request: { storyboard?: StoryboardExportInput; frames?: ExportBoardInput; format?: 'png' | 'jpg' }): Promise<ExportPreview>
   confirmPreview(id: string): Promise<string | null>
   cancelPreview(id: string): Promise<void>
+  libtvRender(folder: string, input: ExportFrameInput, index: number): Promise<string>
+  libtvConfigure(key: string): Promise<{ projectId: string }>
+  libtvTargets(): Promise<string[]>
+  libtvVerify(projectId?: string): Promise<{ projectId: string }>
+  libtvInspect(folder: string, files: LibTVFile[]): Promise<LibTVFile[]>
+  libtvUpload(folder: string, projectId: string, files: LibTVFile[]): Promise<string>
+  libtvStatus(id: string): Promise<LibTVJob | null>
+  libtvCancel(id: string): Promise<void>
+  revealMedia(folder: string, id: string): Promise<void>
   getSettings(): Promise<AppSettings>
   setSettings(patch: Partial<AppSettings>): Promise<AppSettings>
   chooseDirectory(): Promise<string | null>
@@ -117,6 +127,15 @@ const api: SbrAPI = {
   preparePreview: (request) => ipcRenderer.invoke('preview:prepare', request),
   confirmPreview: (id) => ipcRenderer.invoke('preview:confirm', id),
   cancelPreview: (id) => ipcRenderer.invoke('preview:cancel', id),
+  libtvRender: (folder, input, index) => ipcRenderer.invoke('libtv:render', folder, input, index),
+  libtvConfigure: (key) => ipcRenderer.invoke('libtv:configure', key),
+  libtvTargets: () => ipcRenderer.invoke('libtv:targets'),
+  libtvVerify: (projectId) => ipcRenderer.invoke('libtv:verify', projectId),
+  libtvInspect: (folder, files) => ipcRenderer.invoke('libtv:inspect', folder, files),
+  libtvUpload: (folder, projectId, files) => ipcRenderer.invoke('libtv:upload', folder, projectId, files),
+  libtvStatus: (id) => ipcRenderer.invoke('libtv:status', id),
+  libtvCancel: (id) => ipcRenderer.invoke('libtv:cancel', id),
+  revealMedia: (folder, id) => ipcRenderer.invoke('media:reveal', folder, id),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   chooseDirectory: () => ipcRenderer.invoke('settings:directory'),

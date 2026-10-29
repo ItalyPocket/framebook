@@ -43,6 +43,7 @@ export async function getSettings(): Promise<AppSettings> {
     introDuration: 'full',
     motionStyle: 'standard',
     simplifyAnimations: false,
+    askLibTV: false,
     copyMedia: true
   }
   const stored = await readFile(join(app.getPath('userData'), 'settings.json'), 'utf8')
