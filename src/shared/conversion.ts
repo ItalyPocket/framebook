@@ -1,6 +1,24 @@
 export const CONVERSION_FORMATS = ['xml', 'json', 'srt', 'ass', 'stl', 'txt'] as const
 export type ConversionFormat = typeof CONVERSION_FORMATS[number]
-export interface DraftEntry { path: string; name: string; modified: number }
+export const CONVERSION_FORMAT_LABELS: Record<ConversionFormat, string> = {
+  xml: 'Editing timeline · XML', json: 'Complete timeline data · JSON', srt: 'Subtitles · SRT',
+  ass: 'Subtitles · ASS', stl: 'Broadcast subtitles · EBU STL', txt: 'Subtitle text · TXT'
+}
+export type DraftStatus = 'readable' | 'encrypted' | 'invalid'
+export interface DraftSource { path: string; name: string; status: DraftStatus }
+export interface DraftEntry {
+  path: string
+  folder: string
+  name: string
+  modified: number
+  status: DraftStatus
+  cover?: string
+  duration?: number
+  fps?: number
+  width?: number
+  height?: number
+  sources: DraftSource[]
+}
 export interface ConversionIssue { feature: string; level: 'approximate' | 'unverified' | 'unsupported'; clips: string[] }
 export interface DraftClip {
   id: string; track: number; kind: string; materialId: string; path: string; name: string

@@ -1,8 +1,12 @@
 # Jianying / CapCut conversion · 剪映草稿转换
 
-Open **Jianying / CapCut conversion** in the title bar. Choose a draft JSON or folder, or drag one into the conversion window. Default draft folders under Movies are scanned; additional search and export locations can be set in General settings.
+Open **Draft conversion** in the title bar, set the draft directory and browse projects by cover, name, modification time and duration. Select a project and timeline, then choose **Start conversion**. Search opens from the search icon. The chosen directory is saved and shared with General settings. Opening a JSON file directly remains available.
 
-选择标题栏的「剪映 / CapCut 转换」，打开或拖入草稿 JSON／目录。默认扫描影片目录下的草稿；常规设置可指定搜索目录、导出目录及默认格式。
+选择标题栏的「草稿转换」，设置草稿目录，在应用内按封面、名称、修改时间及时长浏览工程。选中工程和时间线后点击「进入转换」。点击搜索图标展开搜索；目录会保存并与常规设置同步，也可直接打开 JSON 文件。
+
+Encrypted projects remain visible. Readable backups and templates are explicitly listed for selection; they are never silently substituted for the current draft. They may be older than the current edit. Project metadata from the draft index helps browsing, but does not decrypt timeline content.
+
+加密工程仍可在草稿库中查看。若存在可读取的备份或模板，需要明确选择；程序不会静默替换当前草稿。副本可能早于当前剪辑版本。草稿索引信息用于展示名称、时长等，不代表时间线已解密。
 
 Review tracks, missing media and the compatibility report before exporting. Relinking only changes the conversion session. Source drafts are never written. Optional media import uses the current project's existing media-storage preference.
 

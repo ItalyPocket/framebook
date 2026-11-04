@@ -1,3 +1,4 @@
+import { CONVERSION_FORMATS, CONVERSION_FORMAT_LABELS, type ConversionFormat } from '@shared/conversion'
 import { LibTVConnection } from './LibTV'
 import { SearchControl } from './SearchControl'
 import { useEffect, useState } from 'react'
@@ -154,7 +155,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
               <h3>{t('Jianying / CapCut conversion')}</h3>
               {path('draftRoot', 'Draft search location')}
               {path('conversionRoot', 'Conversion export location')}
-              <label>{t('Default conversion format')}<select value={value.conversionFormat} onChange={event => change({ conversionFormat: event.target.value as AppSettings['conversionFormat'] })}>{['xml','json','srt','ass','stl','txt'].map(format => <option key={format} value={format}>{format.toUpperCase()}</option>)}</select></label>
+              <label>{t('Default conversion format')}<select value={value.conversionFormat} onChange={event => change({ conversionFormat: event.target.value as AppSettings['conversionFormat'] })}>{CONVERSION_FORMATS.map(format => <option key={format} value={format}>{t(CONVERSION_FORMAT_LABELS[format as ConversionFormat])}</option>)}</select></label>
               <h3>{t('Media storage')}</h3>
               {check('askLibTV', 'Choose LibTV project for every upload')}
               {check('copyMedia', 'Copy imported media into project')}

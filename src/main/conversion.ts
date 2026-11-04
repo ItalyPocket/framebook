@@ -1,26 +1,14 @@
+import { draftFiles } from './draftLibrary'
 import { getSettings } from './workspace'
 import { app, dialog, ipcMain } from 'electron'
-import { readFile, readdir, stat, access, writeFile, mkdir, rename, rm } from 'fs/promises'
+import { readFile, stat, access, writeFile, mkdir, rename, rm } from 'fs/promises'
 import { join, basename, dirname, isAbsolute } from 'path'
 import { randomUUID } from 'crypto'
 import { parseDraft, convertTimeline } from './draftConversion'
-import { CONVERSION_FORMATS, type ConversionFormat, type ConversionSession, type DraftEntry } from '../shared/conversion'
+import { CONVERSION_FORMATS, type ConversionFormat, type ConversionSession } from '../shared/conversion'
 
 const sessions = new Map<string, ConversionSession>()
 const readable = async (path: string): Promise<boolean> => access(path).then(() => true, () => false)
-export async function draftFiles(root: string, depth = 0): Promise<DraftEntry[]> {
-  if (depth > 4) return []
-  const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
-  const found: DraftEntry[] = []
-  for (const entry of entries.slice(0, 1000)) {
-    const path = join(root, entry.name)
-    if (entry.isDirectory() && !entry.name.startsWith('.')) found.push(...await draftFiles(path, depth + 1))
-    else if (entry.isFile() && /^(draft_content|draft_info|template)\.json(\.bak)?$/i.test(entry.name)) {
-      found.push({ path, name: `${basename(dirname(path))} / ${entry.name}`, modified: (await stat(path)).mtimeMs })
-    }
-  }
-  return found
-}
 export async function readDraft(path: string): Promise<ConversionSession> {
   const info = await stat(path)
   if (!info.isFile() || info.size > 64 * 1024 * 1024) throw new Error('Draft must be a JSON file smaller than 64 MB.')
@@ -34,7 +22,7 @@ export async function readDraft(path: string): Promise<ConversionSession> {
     if (!await readable(clip.path)) timeline.missing.push(clip.path)
   }
   timeline.missing = [...new Set(timeline.missing)]
-  if (path.endsWith('.bak') || basename(path).startsWith('template')) timeline.issues.push({ feature: 'Backup/template may differ from the latest saved draft', level: 'unverified', clips: [] })
+  if (path.endsWith('.bak') || path.endsWith('.plain.json') || basename(path).startsWith('template')) timeline.issues.push({ feature: 'Backup/template may differ from the latest saved draft', level: 'unverified', clips: [] })
   const session = { id: randomUUID(), timeline, timelines: [] }
   sessions.set(session.id, session)
   return session
@@ -48,11 +36,13 @@ export function setupConversion(): void {
     }
     const settings = await getSettings()
     const movies = app.getPath('videos')
-    return (await Promise.all([...['JianyingPro', 'CapCut', 'Jianying'].map(name => join(movies, name)), ...(settings.draftRoot ? [settings.draftRoot] : [])].map(root => draftFiles(root)))).flat().sort((a,b) => b.modified-a.modified)
+    const roots = settings.draftRoot ? [settings.draftRoot] : ['JianyingPro', 'CapCut', 'Jianying'].map(name => join(movies, name))
+    const drafts = (await Promise.all(roots.map(root => draftFiles(root)))).flat()
+    return [...new Map(drafts.map(draft => [draft.folder, draft])).values()].sort((a,b) => b.modified-a.modified)
   })
   ipcMain.handle('conversion:open', async (_event, path?: string) => {
     if (!path) {
-      const result = await dialog.showOpenDialog({ properties: ['openFile'], filters: [{ name: 'Draft JSON', extensions: ['json', 'bak'] }] })
+      const result = await dialog.showOpenDialog({ properties: ['openFile'], filters: [{ name: 'JSON', extensions: ['json', 'bak'] }] })
       if (result.canceled) return null
       path = result.filePaths[0]
     }

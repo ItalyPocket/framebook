@@ -1,3 +1,10 @@
+## 2.7.0-beta.2
+
+- Replace file-oriented draft selection with a project library using covers, readable names, timestamps, duration and clear read/encryption status.
+- Save the draft search directory from the library and share it with General settings.
+- Group duplicate active drafts, backups and sub-timelines; select a project and timeline before entering conversion.
+- Unify library, preview, search, controls and export layouts with Framebook; localize conversion options and errors into Chinese.
+
 ## 2.7.0-beta.1
 
 - Add read-only Jianying / CapCut draft conversion with track preview, missing-media relinking and a compatibility report.

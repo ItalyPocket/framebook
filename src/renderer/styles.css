@@ -4097,21 +4097,89 @@ html[data-simplify-animations='true'] .launch-intro * {
 .frame-lightbox { display: flex; align-items: center; justify-content: center; }
 .frame-lightbox img { display: block; max-width: 100%; max-height: 76vh; width: auto; height: auto; object-fit: contain; }
 
-.conversion-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
-.conversion-layout { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; min-height: 320px; }
-.conversion-layout aside, .conversion-layout main { min-width: 0; }
-.conversion-layout aside input { width: 100%; }
-.conversion-drafts { max-height: 480px; overflow: auto; }
-.conversion-drafts button { display: block; width: 100%; text-align: left; margin-top: 8px; overflow-wrap: anywhere; }
-.conversion-drafts small { display: block; opacity: .6; margin-top: 4px; }
-.conversion-timeline { background: #e8ebe9; padding: 8px; margin: 16px 0; }
-.conversion-track { position: relative; height: 32px; margin: 4px 0; }
-.conversion-track span { position: absolute; height: 28px; background: #1737d1; color: white; font-size: 11px; overflow: hidden; white-space: nowrap; padding: 4px; border: 1px solid white; min-width: 2px; }
-.conversion-layout details { border-top: 1px solid #d8dcd9; padding: 12px 0; }
-.conversion-layout summary { cursor: pointer; }
-.conversion-missing { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
-.conversion-missing span { overflow-wrap: anywhere; flex: 1; min-width: 0; }
-.conversion-format { display: flex; white-space: nowrap; align-items: center; gap: 12px; margin: 16px 0; }
-.conversion-preview { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
-.conversion-message { overflow-wrap: anywhere; }
-@media(max-width: 900px) { .conversion-layout { grid-template-columns: 180px minmax(0,1fr); } }
+.draft-converter { color: var(--text); font-size: 14px; }
+.conversion-steps { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 18px; }
+.conversion-steps button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--text-dim); padding: 6px 0; min-height: 32px; font-weight: 600; white-space: nowrap; }
+.conversion-steps button span { font: 11px var(--mono, monospace); letter-spacing: 1px; }
+.conversion-steps button.active { color: var(--accent); }
+.conversion-steps i { width: 36px; height: 1px; background: var(--border-strong); }
+.draft-location { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg); border: 1px solid var(--border); }
+.draft-location > svg { width: 24px; height: 24px; color: var(--accent); flex: none; }
+.draft-location > div { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.draft-location small { color: var(--text-dim); font-size: 11px; }
+.draft-location div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.draft-converter .btn { white-space: nowrap; flex-shrink: 0; }
+.draft-library-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0 12px; }
+.draft-library-toolbar > div:first-child { display: flex; gap: 12px; align-items: baseline; margin-right: auto; }
+.draft-converter h3, .draft-converter h4 { margin: 0; }
+.draft-library-toolbar h3 { font-size: 16px; }
+.draft-library-toolbar .muted { font-size: 12px; white-space: nowrap; }
+.draft-library-layout { display: grid; grid-template-columns: minmax(0,1fr) 248px; gap: 18px; align-items: start; }
+.draft-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); align-content: start; gap: 12px; max-height: min(480px,52vh); min-height: 300px; overflow-y: auto; padding: 2px; }
+.draft-card { display: block; padding: 0; background: var(--bg-panel); border: 1px solid var(--border); text-align: left; min-width: 0; overflow: hidden; cursor: pointer; transition: border-color 160ms, box-shadow 160ms; }
+.draft-card:hover, .draft-card:focus-visible { border-color: var(--accent); }
+.draft-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.draft-cover { position: relative; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg); border-bottom: 1px solid var(--border); }
+.draft-cover img { width: 100%; height: 100%; object-fit: contain; }
+.draft-cover > svg { width: 42px; height: 42px; color: var(--accent); opacity: .7; }
+.draft-cover > span { position: absolute; right: 8px; bottom: 8px; font: 10px var(--mono,monospace); color: var(--text); background: var(--bg-panel); padding: 3px 6px; }
+.draft-card-body { display: grid; justify-items: start; gap: 8px; padding: 12px; }
+.draft-card strong { display: block; width: 100%; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.draft-card small { color: var(--text-dim); font-size: 11px; }
+.draft-status { display: inline-flex; align-items: center; font-size: 11px; line-height: 1.4; white-space: nowrap; padding: 3px 6px; background: #e7eae7; color: #505952; }
+.draft-status.readable { color: #1737d1; background: #e9edff; }
+.draft-status.encrypted, .draft-status.approximate, .draft-status.unverified { color: #735a1c; background: #f4efdf; }
+.draft-status.invalid, .draft-status.unsupported { color: #a43b38; background: #f7e9e7; }
+.draft-selection { background: var(--bg); border: 1px solid var(--border); padding: 14px; min-width: 0; }
+.draft-selection > .draft-cover { margin: -14px -14px 14px; }
+.draft-selection h3 { margin-bottom: 10px; font-size: 16px; overflow-wrap: anywhere; }
+.draft-selection dl { margin: 16px 0; }
+.draft-selection dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; margin: 8px 0; }
+.draft-selection dt { color: var(--text-dim); white-space: nowrap; }
+.draft-selection dd { margin: 0; text-align: right; }
+.draft-selection select, .conversion-export select { min-width: 0; width: 100%; }
+.draft-path { font-size: 11px; line-height: 1.6; color: var(--text-dim); overflow-wrap: anywhere; max-height: 52px; overflow: auto; }
+.draft-notice { font-size: 12px; line-height: 1.7; padding-left: 10px; border-left: 2px solid var(--accent); color: var(--text-dim); }
+.draft-selection > .primary, .conversion-export > .primary { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 16px; }
+.draft-empty { grid-column: 1/-1; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 24px; border: 1px dashed var(--border-strong); }
+.draft-empty svg { width: 36px; height: 36px; color: var(--accent); }
+.draft-empty p { max-width: 300px; color: var(--text-dim); line-height: 1.7; margin: 0; }
+.draft-footnote { font-size: 12px; color: var(--text-dim); margin: 14px 0 0; }
+.conversion-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.conversion-heading small { color: var(--accent); font: 11px var(--mono,monospace); letter-spacing: 1px; }
+.conversion-heading h3 { font-size: 22px; margin: 8px 0; overflow-wrap: anywhere; }
+.conversion-heading p { color: var(--text-dim); margin: 0; font-size: 12px; }
+.conversion-workflow { display: grid; grid-template-columns: minmax(0,1fr) 248px; gap: 20px; }
+.conversion-content { min-width: 0; }
+.conversion-content > h4 { font-size: 13px; }
+.conversion-timeline { background: var(--bg); border: 1px solid var(--border); padding: 10px; margin: 12px 0 18px; max-height: 210px; overflow-y: auto; }
+.conversion-track-row { display: flex; align-items: center; gap: 8px; }
+.conversion-track-row > small { font: 10px var(--mono,monospace); color: var(--text-dim); width: 40px; flex: none; white-space: nowrap; }
+.conversion-track { position: relative; height: 32px; margin: 3px 0; flex: 1; min-width: 0; }
+.conversion-track span { position: absolute; box-sizing: border-box; height: 28px; background: var(--accent); color: white; font-size: 11px; overflow: hidden; white-space: nowrap; padding: 4px; border: 1px solid white; min-width: 2px; }
+.conversion-content details { border-top: 1px solid var(--border); padding: 12px 0; }
+.conversion-content summary { cursor: pointer; font-weight: 600; }
+.conversion-content summary > span { margin-left: 10px; color: var(--text-dim); font: 12px var(--mono,monospace); }
+.conversion-content .muted { font-size: 12px; line-height: 1.7; }
+.conversion-missing { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.conversion-missing > span { overflow-wrap: anywhere; flex: 1; min-width: 0; font-size: 12px; }
+.conversion-issues { list-style: none; padding: 0; margin: 12px 0 0; }
+.conversion-issues li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.conversion-issues strong { font-size: 12px; font-weight: 500; flex: 1; }
+.conversion-issues small { color: var(--text-dim); white-space: nowrap; font-size: 11px; }
+.conversion-export { background: var(--bg); border: 1px solid var(--border); padding: 16px; align-self: start; min-width: 0; }
+.conversion-export > svg { width: 32px; height: 32px; color: var(--accent); margin-bottom: 12px; }
+.conversion-export > h3 { margin-bottom: 20px; }
+.conversion-export > .btn:not(.primary) { white-space: normal; text-align: left; width: 100%; }
+.conversion-export > .muted { font-size: 12px; margin: 12px 0; }
+.conversion-preview { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; padding: 12px; background: var(--bg); }
+.conversion-message { overflow-wrap: anywhere; line-height: 1.7; border: 1px solid var(--border); padding: 12px; margin: 16px 0 0; }
+.conversion-message.error { color: #9c3a35; border-color: #e2bab5; background: #fbf1ef; }
+.conversion-message.success { color: var(--accent); background: #edf0ff; }
+@media(max-width: 800px) {
+  .draft-library-layout, .conversion-workflow { grid-template-columns: minmax(0,1fr); }
+  .draft-selection > .draft-cover { display: none; }
+  .draft-selection dl { display: flex; gap: 20px; flex-wrap: wrap; }
+  .draft-grid { min-height: 200px; max-height: 36vh; }
+  .draft-location { flex-wrap: wrap; }
+}
