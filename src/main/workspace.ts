@@ -28,6 +28,9 @@ let settingsCache: AppSettings | undefined
 export async function getSettings(): Promise<AppSettings> {
   if (settingsCache) return settingsCache
   const defaults: AppSettings = {
+    conversionRoot: join(app.getPath('documents'), '帧册', '导出', '剪映转换'),
+    conversionFormat: 'xml',
+    draftRoot: '',
     projectRoot: join(app.getPath('userData'), 'Projects'),
     libraryRoots: [],
     recentProjects: [],

@@ -1,4 +1,7 @@
 export interface AppSettings {
+  conversionRoot: string
+  conversionFormat: 'xml' | 'json' | 'srt' | 'ass' | 'stl' | 'txt'
+  draftRoot: string
   projectRoot: string
   libraryRoots: string[]
   recentProjects: string[]

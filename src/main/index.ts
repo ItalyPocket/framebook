@@ -1,3 +1,4 @@
+import { setupConversion } from './conversion'
 import { setupLibTV } from './libtv'
 import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../shared/i18n'
 /**
@@ -77,6 +78,7 @@ app.whenReady().then(() => {
     credits: 'Storyboard Reference Studio · Sam Wasserman · wassermanproductions.com',
     copyright: 'Apache-2.0'
   })
+  setupConversion()
   setupWorkspace()
   setupPreviews()
   setupLibTV(resolveReadablePath)

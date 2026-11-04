@@ -20,7 +20,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
     void update(patch).catch((reason) => setError(String(reason)))
   }
   const path = (
-    key: 'projectRoot' | 'storyboardRoot' | 'framesRoot',
+    key: 'projectRoot' | 'storyboardRoot' | 'framesRoot' | 'conversionRoot' | 'draftRoot',
     label: string
   ): JSX.Element => (
     <label className="field">
@@ -151,6 +151,10 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
               {check('askStoryboard', 'Ask for storyboard export location each time')}
               {path('framesRoot', 'Frame export location')}
               {check('askFrames', 'Ask for frame export location each time')}
+              <h3>{t('Jianying / CapCut conversion')}</h3>
+              {path('draftRoot', 'Draft search location')}
+              {path('conversionRoot', 'Conversion export location')}
+              <label>{t('Default conversion format')}<select value={value.conversionFormat} onChange={event => change({ conversionFormat: event.target.value as AppSettings['conversionFormat'] })}>{['xml','json','srt','ass','stl','txt'].map(format => <option key={format} value={format}>{format.toUpperCase()}</option>)}</select></label>
               <h3>{t('Media storage')}</h3>
               {check('askLibTV', 'Choose LibTV project for every upload')}
               {check('copyMedia', 'Copy imported media into project')}

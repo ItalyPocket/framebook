@@ -4096,3 +4096,22 @@ html[data-simplify-animations='true'] .launch-intro * {
 
 .frame-lightbox { display: flex; align-items: center; justify-content: center; }
 .frame-lightbox img { display: block; max-width: 100%; max-height: 76vh; width: auto; height: auto; object-fit: contain; }
+
+.conversion-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.conversion-layout { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; min-height: 320px; }
+.conversion-layout aside, .conversion-layout main { min-width: 0; }
+.conversion-layout aside input { width: 100%; }
+.conversion-drafts { max-height: 480px; overflow: auto; }
+.conversion-drafts button { display: block; width: 100%; text-align: left; margin-top: 8px; overflow-wrap: anywhere; }
+.conversion-drafts small { display: block; opacity: .6; margin-top: 4px; }
+.conversion-timeline { background: #e8ebe9; padding: 8px; margin: 16px 0; }
+.conversion-track { position: relative; height: 32px; margin: 4px 0; }
+.conversion-track span { position: absolute; height: 28px; background: #1737d1; color: white; font-size: 11px; overflow: hidden; white-space: nowrap; padding: 4px; border: 1px solid white; min-width: 2px; }
+.conversion-layout details { border-top: 1px solid #d8dcd9; padding: 12px 0; }
+.conversion-layout summary { cursor: pointer; }
+.conversion-missing { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.conversion-missing span { overflow-wrap: anywhere; flex: 1; min-width: 0; }
+.conversion-format { display: flex; white-space: nowrap; align-items: center; gap: 12px; margin: 16px 0; }
+.conversion-preview { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.conversion-message { overflow-wrap: anywhere; }
+@media(max-width: 900px) { .conversion-layout { grid-template-columns: 180px minmax(0,1fr); } }

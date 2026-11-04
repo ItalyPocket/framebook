@@ -1,3 +1,11 @@
+## 2.7.0-beta.1
+
+- Add read-only Jianying / CapCut draft conversion with track preview, missing-media relinking and a compatibility report.
+- Export FCP 7 XML, source-preserving timeline JSON, SRT, ASS, plain text and limited ASCII EBU STL.
+- Preserve source in/out ranges and rational frame rates; reject XML conversion when source ranges are missing.
+- Add conversion locations and format preferences. Optionally import referenced media into the current project.
+- macOS encrypted drafts and full effect fidelity remain unsupported. Resolve round-trip validation requires a representative draft.
+
 # 2.5.2 — 清理与 AI 暂停
 
 ## 2.6.3

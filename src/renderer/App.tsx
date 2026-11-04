@@ -1,3 +1,4 @@
+import { DraftConverter } from './components/DraftConverter'
 import { LibTVUploads } from './components/LibTV'
 import { DockLayout } from './components/DockLayout'
 import { useLanguage } from './language'
@@ -245,6 +246,7 @@ function useKeyboard(enabled: boolean): void {
 export function App(): JSX.Element {
   useFileDrop()
   const [home, setHome] = useState(false)
+  const [conversionOpen, setConversionOpen] = useState(false)
   const [introRun, setIntroRun] = useState(0)
   const [introActive, setIntroActive] = useState(shouldShowIntro)
   const finishIntro = useCallback(() => setIntroActive(false), [])
@@ -342,6 +344,7 @@ export function App(): JSX.Element {
         <ProjectLibrary searchInitiallyOpen={searchLibrary} onOpened={() => setHome(false)} onClose={() => setPanel(null)} />
       )}
       <LibTVUploads />
+      {conversionOpen && <DraftConverter onClose={() => setConversionOpen(false)} />}
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
     </Fragment>
   )
@@ -351,6 +354,7 @@ export function App(): JSX.Element {
         <div className="titlebar">
           <span className="app-name">帧册 / FRAMEBOOK</span>
           <div className="spacer" />
+          <TopAction icon="convert" label="Draft conversion" onClick={() => setConversionOpen(true)} />
           <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
           <LanguageSelect />
         </div>
@@ -402,7 +406,8 @@ export function App(): JSX.Element {
             setPanel('library')
           }}
         />
-        <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
+        <TopAction icon="convert" label="Draft conversion" onClick={() => setConversionOpen(true)} />
+          <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
         <LanguageSelect />
         <TopAction icon="save" label="Save" onClick={onSave} />
         <TopAction icon="help" label="Help" onClick={() => useStore.getState().setHelpOpen(true)} />

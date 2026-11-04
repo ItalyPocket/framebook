@@ -1,3 +1,4 @@
+import type { ConversionSession, ConversionFormat, DraftEntry } from '../shared/conversion'
 import type { LibTVFile, LibTVJob } from '../shared/libtv'
 /**
  * Typed IPC bridge. The renderer sees exactly this surface as window.sbr —
@@ -50,6 +51,12 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  conversionScan(custom?: boolean | string): Promise<DraftEntry[]>
+  conversionOpen(path?: string): Promise<ConversionSession | null>
+  conversionRelink(id: string, path: string): Promise<ConversionSession>
+  conversionPreview(id: string, format: ConversionFormat): Promise<{ text: string; bytes: number }>
+  conversionExport(id: string, format: ConversionFormat): Promise<string | null>
+  conversionClose(id: string): Promise<void>
   preparePreview(request: { storyboard?: StoryboardExportInput; frames?: ExportBoardInput; format?: 'png' | 'jpg' }): Promise<ExportPreview>
   confirmPreview(id: string): Promise<string | null>
   cancelPreview(id: string): Promise<void>
@@ -125,6 +132,12 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  conversionScan: (custom) => ipcRenderer.invoke('conversion:scan', custom),
+  conversionOpen: (path) => ipcRenderer.invoke('conversion:open', path),
+  conversionRelink: (id, path) => ipcRenderer.invoke('conversion:relink', id, path),
+  conversionPreview: (id, format) => ipcRenderer.invoke('conversion:preview', id, format),
+  conversionExport: (id, format) => ipcRenderer.invoke('conversion:export', id, format),
+  conversionClose: (id) => ipcRenderer.invoke('conversion:close', id),
   preparePreview: (request) => ipcRenderer.invoke('preview:prepare', request),
   confirmPreview: (id) => ipcRenderer.invoke('preview:confirm', id),
   cancelPreview: (id) => ipcRenderer.invoke('preview:cancel', id),
