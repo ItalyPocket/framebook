@@ -1,3 +1,4 @@
+import { storyColumnLabel } from '../shared/schema'
 import { paginateStoryboard } from './pagination'
 import { BrowserWindow } from 'electron'
 import { mkdir, mkdtemp, readFile, writeFile, copyFile, rm } from 'fs/promises'
@@ -95,7 +96,7 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
     if (input.kind === 'csv') {
       const headers = [
         ...(input.shots.some((s) => s.groupTitle) ? [tr('Group')] : []),
-        ...columns.map((column) => tr(column.name))
+        ...columns.map((column) => storyColumnLabel(column, input.language))
       ]
       const rows = input.shots.map((shot) => [
         ...(input.shots.some((s) => s.groupTitle) ? [shot.groupTitle ?? ''] : []),
@@ -136,16 +137,16 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
           for (const [i, frame] of framesFor(shot, column.id).entries()) {
             const png = await renderDisplayStill(frame, work, index * 10000 + pictureIndex++)
             pictures.push(
-              `<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${escape(tr(rolesFor(shot, column.id)[i] ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`
+              `<figure><img src="data:image/png;base64,${(await readFile(png)).toString('base64')}"/><figcaption>${frame.origin === 'ai' ? escape(tr('AI generated')) + ' · ' : ''}${escape(tr(rolesFor(shot, column.id)[i] ?? 'Reference'))} · ${escape(frame.mediaName)} · ${frame.timeS.toFixed(2)}s</figcaption></figure>`
             )
           }
         cells.push(
           `<td>${column.type === 'image' ? `<div class="pictures">${pictures.join('')}</div>` : escape(cellText(shot, column.id))}</td>`
         )
       }
-      rows.push(`<tr>${cells.join('')}</tr>`)
+      rows.push(`<tr${shot.rowColor && /^#[a-f0-9]{6}$/i.test(shot.rowColor) ? ` style="background:${shot.rowColor}"` : ''}>${cells.join('')}</tr>`)
     }
-    const headers = columns.map((column) => `<th>${escape(tr(column.name))}</th>`).join('')
+    const headers = columns.map((column) => `<th>${escape(storyColumnLabel(column, input.language))}</th>`).join('')
     const widths = columns
       .map(
         (column) =>

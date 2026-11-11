@@ -265,3 +265,27 @@ export function Dialog({
     document.body
   )
 }
+
+export function ContextMenu({ x, y, onClose, children }: { x: number; y: number; onClose(): void; children: ReactNode }): JSX.Element {
+  const panel = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ left: x, top: y })
+  useLayoutEffect(() => {
+    const element = panel.current
+    if (!element) return
+    setPosition({ left: Math.max(8, Math.min(x, innerWidth - element.offsetWidth - 8)), top: Math.max(8, Math.min(y, innerHeight - element.offsetHeight - 8)) })
+    element.querySelector<HTMLElement>('button:not(:disabled),select')?.focus({ preventScroll: true })
+  }, [x, y])
+  useEffect(() => {
+    const close = (event: KeyboardEvent): void => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose() } }
+    window.addEventListener('keydown', close, true)
+    window.addEventListener('resize', onClose)
+    return () => { window.removeEventListener('keydown', close, true); window.removeEventListener('resize', onClose) }
+  }, [onClose])
+  return createPortal(<div className="context-shield" onPointerDown={onClose} onContextMenu={event => { event.preventDefault(); onClose() }}><div ref={panel} className="floating-menu media-context" role="menu" style={{ ...position, maxHeight: 'calc(100vh - 16px)' }} onPointerDown={event => event.stopPropagation()} onKeyDown={event => {
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key) || (event.target as HTMLElement).tagName === 'SELECT') return
+    event.preventDefault()
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),select')]
+    const index = items.indexOf(document.activeElement as HTMLElement)
+    items[(index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus()
+  }}>{children}</div></div>, document.body)
+}

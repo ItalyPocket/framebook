@@ -274,6 +274,7 @@ export function App(): JSX.Element {
   const doc = useStore((s) => s.doc)
   useEffect(() => setHome(false), [doc?.id])
   const workspace = useStore((s) => s.workspace)
+  useEffect(() => { if (!['capture', 'libtv'].includes(workspace)) void window.sbr.setPanelMenu({ name: workspace, panels: [] }) }, [workspace])
   const mediaFolder = useStore(state => state.projectFolder)
   useEffect(() => () => { if (mediaFolder) releaseProjectMedia(mediaFolder) }, [mediaFolder])
   const canUndo = useStore((s) => s.history.length > 0)

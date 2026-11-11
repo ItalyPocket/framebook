@@ -1,5 +1,12 @@
 ![Framebook — Capture. Study. Arrange.](docs/images/hero.svg)
 
+**2.9.0-beta.1 预览版 / Preview**
+
+静帧与分镜内容双向关联、AI／实拍来源着色、分镜批量编辑、macOS 面板菜单，以及可直接拖入素材的 LibTV 创作画布。
+
+Linked frame and shot content, configurable AI/live-action row colors, batch storyboard editing, native macOS panel controls, and a LibTV canvas with direct media drops, trackpad navigation, and persistent generation drafts. Cloud generation always requires credit confirmation.
+
+
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 **A visual workspace for frame analysis, storyboards and shooting preparation on Apple Silicon Mac.**

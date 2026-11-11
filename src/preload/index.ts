@@ -52,6 +52,8 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  setPanelMenu(state: import('../shared/panels').PanelMenuState): Promise<void>
+  onPanelAction(callback: (action: import('../shared/panels').PanelAction) => void): () => void
   thumbnailUrl(folder: string, path: string, time?: number): Promise<string>
   compositeCache(folder: string, source: string, signature: string, encoded?: string): Promise<Uint8Array | null>
   mediaUrl(folder: string, path: string): Promise<string>
@@ -179,6 +181,8 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  setPanelMenu: (state) => ipcRenderer.invoke('panels:state', state),
+  onPanelAction: (callback) => { const listener = (_event: Electron.IpcRendererEvent, action: import('../shared/panels').PanelAction): void => callback(action); ipcRenderer.on('panels:action', listener); return () => { ipcRenderer.removeListener('panels:action', listener) } },
   thumbnailUrl: (folder, path, time) => ipcRenderer.invoke('media:thumbnail', folder, path, time),
   compositeCache: (folder, source, signature, encoded) => ipcRenderer.invoke('cache:composite', folder, source, signature, encoded),
   mediaUrl: (folder, path) => ipcRenderer.invoke('media:url', folder, path),

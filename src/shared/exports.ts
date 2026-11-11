@@ -2,6 +2,7 @@ import type { Crop, ShotMeta, Annotation, StoryShot, StoryColumn } from './types
 import type { Language } from './i18n'
 
 export interface ExportFrameInput {
+  origin?: import('./storyLinks').ImageOrigin
   sourcePng: string
   label: string
   notes: string
@@ -28,6 +29,7 @@ export interface StoryboardExportInput {
   exportsRoot: string
   columns: StoryColumn[]
   shots: (StoryShot & {
+    rowColor?: string
     groupTitle?: string
     rendered: ExportFrameInput[]
     imageRoles: string[]

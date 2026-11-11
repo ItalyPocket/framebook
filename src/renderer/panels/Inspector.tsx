@@ -1,6 +1,7 @@
 import { t } from '@shared/i18n'
+import { linkedShots, frameContent, type ImageOrigin } from '@shared/storyLinks'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useStore, currentProjectJson } from '../store'
 import { useAbsUrl } from '../lib/useMediaUrl'
 import { CropEditor } from './CropEditor'
@@ -17,7 +18,12 @@ export function Inspector(): JSX.Element {
   const still = useStore((s) => (frameId ? s.stills[frameId] : undefined))
 
   const setFrameLabel = useStore((s) => s.setFrameLabel)
-  const setFrameNotes = useStore((s) => s.setFrameNotes)
+  const setFrameContent = useStore(s => s.setFrameContent)
+  const doc = useStore(s => s.doc)
+  const [linkedId, setLinkedId] = useState('')
+  useEffect(() => setLinkedId(''), [frameId])
+  const links = doc && frameId ? linkedShots(doc, frameId) : []
+  const linked = links.find(shot => shot.id === linkedId) ?? links[0]
   const setFrameCrop = useStore((s) => s.setFrameCrop)
   const setFrameCropAspect = useStore((s) => s.setFrameCropAspect)
   const setFrameDuration = useStore((s) => s.setFrameDuration)
@@ -73,7 +79,9 @@ export function Inspector(): JSX.Element {
         )}
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section origin-section">
+        <label className="field">{t('Image source')}<select aria-label={t('Image source')} value={frame.origin ?? 'unknown'} onChange={event => { useStore.getState().setImageOrigin(frame.id, event.target.value as ImageOrigin); void save() }}><option value="unknown">{t('Unmarked')}</option><option value="live">{t('Live action')}</option><option value="ai">{t('AI generated')}</option></select></label>
+        {links.length > 1 && <label className="field">{t('Linked shot')}<select aria-label={t('Linked shot')} value={linked?.id ?? ''} onChange={event => setLinkedId(event.target.value)}>{links.map(shot => <option key={shot.id} value={shot.id}>{t('Shot')} {String(shot.cells.shotNo || (doc!.storyboard.shots.indexOf(shot) + 1))}</option>)}</select></label>}
         <div className="field">
           <label>{t("Label")}</label>
           <input
@@ -85,8 +93,8 @@ export function Inspector(): JSX.Element {
           />
         </div>
         <div className="field">
-          <label>{t("Notes")}</label>
-          <textarea value={frame.notes} onChange={(e) => setFrameNotes(frame.id, e.target.value)} onBlur={save} />
+          <label>{t("Content")}</label>
+          <textarea aria-label={t("Content")} value={doc ? frameContent(doc, frame, linked?.id) : frame.notes} onChange={(e) => setFrameContent(frame.id, e.target.value, linked?.id)} onBlur={save} />
         </div>
         <div className="field">
           <label>{t("Duration (s)")}</label>
@@ -111,7 +119,7 @@ export function Inspector(): JSX.Element {
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label>{t("Shot")}</label>
-            <input type="text" value={frame.shot.shotNo} onChange={(e) => setFrameShot(frame.id, { shotNo: e.target.value })} onBlur={save} />
+            <input aria-label={t("Linked shot number")} type="text" readOnly value={linked ? String(linked.cells.shotNo || (doc!.storyboard.shots.indexOf(linked) + 1)) : t("Not linked to storyboard")} title={t("Edit the shot number in Storyboard")} />
           </div>
         </div>
         <ShotSelect label={t("Size")} options={SHOT_SIZES} value={frame.shot.shotSize} onChange={(v) => { setFrameShot(frame.id, { shotSize: v }); void save() }} />

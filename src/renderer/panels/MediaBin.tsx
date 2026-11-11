@@ -1,5 +1,5 @@
+import { useItemSelection } from '../lib/useItemSelection'
 import { useVisible } from '../lib/useVisible'
-import { createPortal } from 'react-dom'
 import { SearchControl } from '../components/SearchControl'
 import { t } from '@shared/i18n'
 /**
@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useStore, currentProjectJson } from '../store'
 import { useThumbnailUrl } from '../lib/useMediaUrl'
 import { newId } from '@shared/schema'
-import { Dialog } from '../components/Controls'
+import { ContextMenu, Dialog } from '../components/Controls'
 import type { MediaItem } from '@shared/types'
 
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac']
@@ -24,11 +24,13 @@ function isAudioPath(p: string): boolean {
 function BinItem({
   item,
   selected,
+  selectedIds,
   onSelect,
   onMenu
 }: {
   item: MediaItem
   selected: boolean
+  selectedIds: string[]
   onMenu(event: React.MouseEvent | React.KeyboardEvent): void
   onSelect(event: React.MouseEvent): void
 }): JSX.Element {
@@ -41,7 +43,8 @@ function BinItem({
     <div
       ref={visibleRef}
       draggable
-      onDragStart={(event) => event.dataTransfer.setData('application/framebook-media', item.id)}
+      data-select-id={item.id}
+      onDragStart={event => { event.dataTransfer.setData('application/framebook-media', item.id); event.dataTransfer.setData('application/framebook-media-list', JSON.stringify(selectedIds.includes(item.id) ? selectedIds : [item.id])) }}
       tabIndex={0}
       role="button"
       aria-pressed={selected}
@@ -200,7 +203,7 @@ export function MediaBin(): JSX.Element {
       }
     }
     window.addEventListener('keydown', paste)
-    return () => window.removeEventListener('keydown', paste)
+  return () => window.removeEventListener('keydown', paste)
   }, [onPaste])
 
   const folders = doc?.mediaFolders ?? []
@@ -226,6 +229,7 @@ export function MediaBin(): JSX.Element {
     (storage === 'all' || (storage === 'external') === !!item.externalPath) &&
     (search ? item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()) : (item.folderId ?? null) === currentFolder)
   ) ?? []
+  const selection = useItemSelection(visibleMedia.map(item => item.id), selected, setSelected)
   return (
     <div className="bin panel" data-import-folder={currentFolder ?? ''}>
       <div className="bin-actions">
@@ -351,7 +355,8 @@ export function MediaBin(): JSX.Element {
           </button>
         </div>
       )}
-      <div className={`bin-list ${grid ? 'media-grid' : ''}`}>
+      <div className={`bin-list selectable-surface ${grid ? 'media-grid' : ''}`} tabIndex={0} onKeyDown={selection.keyDown} onPointerDown={selection.pointerDown}>
+        {selection.rectangle && <div className="selection-rectangle" style={selection.rectangle} />}
         {folders
           .filter(
             (item) =>
@@ -396,18 +401,8 @@ export function MediaBin(): JSX.Element {
                   setContext({ id: m.id, x: 'clientX' in event ? event.clientX : rect.left, y: 'clientY' in event ? event.clientY : rect.bottom })
                 }}
                 selected={selected.includes(m.id)}
-                onSelect={(event) => {
-                  if (event.metaKey || event.ctrlKey || event.shiftKey)
-                    setSelected((previous) =>
-                      previous.includes(m.id)
-                        ? previous.filter((id) => id !== m.id)
-                        : [...previous, m.id]
-                    )
-                  else {
-                    setSelected([m.id])
-                    useStore.getState().selectMedia(m.id)
-                  }
-                }}
+                selectedIds={selected}
+                onSelect={event => { selection.click(m.id, event); if (!event.metaKey && !event.ctrlKey && !event.shiftKey) useStore.getState().selectMedia(m.id) }}
               />
             ))
         )}
@@ -430,8 +425,7 @@ export function MediaBin(): JSX.Element {
           </div>
         )}
       </div>
-      {context && createPortal(<div className="context-shield" onClick={() => setContext(null)} onContextMenu={(e) => { e.preventDefault(); setContext(null) }}>
-        <div className="floating-menu media-context" role="menu" style={{left: Math.max(8, Math.min(context.x, window.innerWidth - 260)), top: Math.max(8, Math.min(context.y, window.innerHeight - 340)), maxHeight: window.innerHeight - Math.max(8, Math.min(context.y, window.innerHeight - 340)) - 8}} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if(e.key === 'Escape') setContext(null); if(e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const items=[...e.currentTarget.querySelectorAll<HTMLElement>('button,select')];const index=items.indexOf(document.activeElement as HTMLElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus() } }}>
+      {context && <ContextMenu x={context.x} y={context.y} onClose={() => setContext(null)}>
           {doc?.media.find(item => item.id === context.id)?.clip && <button onClick={() => { window.dispatchEvent(new CustomEvent('clips-export', { detail: [context.id] })); setContext(null) }}>{t('Export clips')}</button>}
           <button autoFocus onClick={() => { useStore.getState().selectMedia(context.id); setContext(null) }}>{t('Open preview')}</button>
           <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; setRename({id:item.id,name:item.name}); setContext(null) }}>{t('Rename')}</button>
@@ -447,8 +441,7 @@ export function MediaBin(): JSX.Element {
             else { state.mutate('remove media', (p) => { p.media = p.media.filter((m) => m.id !== context.id) }); setSelected((ids) => ids.filter((id) => id !== context.id)); if(state.selectedMediaId === context.id) state.selectMedia(null) }
             setContext(null)
           }}>{t('Remove from project')}</button>
-        </div>
-      </div>, document.body)}
+      </ContextMenu>}
       {rename && <Dialog title={t('Rename')} onClose={() => setRename(null)}><form onSubmit={(e) => { e.preventDefault(); if(!rename.name.trim()) return; useStore.getState().mutate('rename media', (p) => { const item = p.media.find((m) => m.id === rename.id); if(item) item.name = rename.name.trim() }); setRename(null) }}><input autoFocus value={rename.name} onChange={(e) => setRename({...rename,name:e.target.value})} /><button className="btn primary" disabled={!rename.name.trim()}>{t('Save')}</button></form></Dialog>}
       {folderDialog && (
         <Dialog

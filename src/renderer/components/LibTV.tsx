@@ -1,3 +1,4 @@
+import { uploadDirect } from '../lib/libtvTransfer'
 import { StillImage } from '../panels/StillImage'
 import { useMediaUrl } from '../lib/useMediaUrl'
 import type { MediaItem, Frame } from '@shared/types'
@@ -81,8 +82,8 @@ export function LibTVUploads(): JSX.Element | null {
   useEffect(() => { if(target) {setTargetId(target.projectId);void window.sbr.libtvTargets().then(setTargets).catch(() => setTargets([]))} },[target?.projectId])
   useEffect(() => {
     const receive = (event: Event): void => {
-      const detail = (event as CustomEvent<{mediaIds?: string[]; frameIds?: string[]}>).detail
-      setOpen(true); setJob(null); setCompleted([]); void window.sbr.libtvTargets().then(setTargets).catch(() => setTargets([])); setError(''); setBusy(true); setConfirmed(false)
+      const detail = (event as CustomEvent<{mediaIds?: string[]; frameIds?: string[]; direct?: boolean; position?: { x: number; y: number }}>).detail
+      setOpen(!detail.direct || !useStore.getState().doc?.settings.libtv); setJob(null); setCompleted([]); void window.sbr.libtvTargets().then(setTargets).catch(() => setTargets([])); setError(''); setBusy(true); setConfirmed(false)
       const state = useStore.getState()
       setTargetId(state.doc?.settings.libtv?.projectId ?? '')
       void (async () => {
@@ -96,7 +97,10 @@ export function LibTVUploads(): JSX.Element | null {
           const inputs = await buildExportInputs(frames)
           for(const [index,input] of inputs.entries()) selected.push({id:frames[index]!.id,name:`${String(index+1).padStart(3,'0')}.png`,path:await window.sbr.libtvRender(state.projectFolder,input,index)})
         }
-        setFiles(await window.sbr.libtvInspect(state.projectFolder,selected))
+        const inspected = await window.sbr.libtvInspect(state.projectFolder, selected)
+        if (detail.position) inspected.forEach((file, index) => { file.x = detail.position!.x + (index % 4) * 300; file.y = detail.position!.y + Math.floor(index / 4) * 260 })
+        setFiles(inspected)
+        if (detail.direct && state.doc.settings.libtv) await uploadDirect(state.projectFolder, state.doc.settings.libtv.projectId, inspected)
       })().catch((e) => setError(String(e))).finally(() => setBusy(false))
     }
     window.addEventListener('libtv-upload',receive)
@@ -114,7 +118,7 @@ export function LibTVUploads(): JSX.Element | null {
     setBusy(true); setError('')
     try {
       if(retry && job) setCompleted((previous) => [...previous,...job.items.filter((item) => item.state==='uploaded')])
-      const id = await window.sbr.libtvUpload(state.projectFolder,targetId,retry ? files.filter((f) => job?.items.some((i) => i.id === f.id && i.state !== 'uploaded')) : files)
+      const id = await window.sbr.libtvUpload(state.projectFolder,targetId,retry ? files.filter((f) => job?.items.some((i) => i.id === f.id && i.state !== 'uploaded')).map(file => ({ ...file, nodeKey: job?.items.find(item => item.id === file.id)?.nodeKey })) : files)
       setJob(await window.sbr.libtvStatus(id))
     } catch(e) { setError(String(e)) } finally { setBusy(false) }
   }

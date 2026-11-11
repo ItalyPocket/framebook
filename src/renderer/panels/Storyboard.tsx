@@ -1,3 +1,6 @@
+import { storyColumnLabel } from '@shared/schema'
+import { originColor } from '@shared/storyLinks'
+import { SelectionCheckbox } from '../components/SelectionCheckbox'
 import { StoryImages } from '../components/StoryImages'
 import type { ExportPreview } from '@shared/workspace'
 import { ExportPreviewDialog } from '../components/ExportPreview'
@@ -63,8 +66,21 @@ export function StoryboardEditor(): JSX.Element | null {
   const [templateName, setTemplateName] = useState('')
   const [details, setDetails] = useState(false)
   const dragging = useRef<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+  const [planPicker, setPlanPicker] = useState(false)
+  const [planGroup, setPlanGroup] = useState('')
+  const selectionAnchor = useRef('')
   if (!doc) return null
   const board = doc.storyboard
+  const selectedRows = board.shots.filter(shot => selected.includes(shot.id))
+  const selectRow = (id: string, shift: boolean): void => {
+    if (shift && selectionAnchor.current) {
+      const start = board.shots.findIndex(shot => shot.id === selectionAnchor.current), end = board.shots.findIndex(shot => shot.id === id)
+      if (start >= 0) { setSelected(previous => [...new Set([...previous, ...board.shots.slice(Math.min(start, end), Math.max(start, end) + 1).map(shot => shot.id)])]); return }
+    }
+    selectionAnchor.current = id
+    setSelected(previous => previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id])
+  }
   const columns = board.columns.filter((column) => column.visible)
   const frozenId = columns.find((column) => column.id === 'shotNo')?.id
   const orderedColumns = frozenId
@@ -113,7 +129,7 @@ export function StoryboardEditor(): JSX.Element | null {
     setExporting(true)
     try {
       const shots = []
-      for (const shot of board.shots) {
+      for (const shot of (selectedRows.length ? selectedRows : board.shots)) {
         const renderedByColumn: Record<string, Awaited<ReturnType<typeof buildExportInputs>>> = {}
         const rolesByColumn: Record<string, string[]> = {}
         for (const column of columns.filter((item) => item.type === 'image')) {
@@ -121,7 +137,7 @@ export function StoryboardEditor(): JSX.Element | null {
           renderedByColumn[column.id] = await buildExportInputs(images.map((image) => image.frame))
           rolesByColumn[column.id] = images.map((image) => image.role)
         }
-        shots.push({ ...shot, rendered: [], imageRoles: [], renderedByColumn, rolesByColumn })
+        shots.push({ ...shot, rowColor: originColor(doc, shot), rendered: [], imageRoles: [], renderedByColumn, rolesByColumn })
       }
       const result = await window.sbr.preparePreview({ projectFolder: folder ?? undefined,
         storyboard: {
@@ -178,7 +194,8 @@ export function StoryboardEditor(): JSX.Element | null {
   )
 
   return (
-    <section className={`storyboard-workspace density-${density}`}>
+    <section className={`storyboard-workspace density-${density}`} tabIndex={-1} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a' && !(event.target as HTMLElement).closest('input,textarea,[contenteditable="true"]')) { event.preventDefault(); event.stopPropagation(); setSelected(board.shots.map(shot => shot.id)) } }}>
+      {!!selectedRows.length && <div className="batch-toolbar" role="toolbar" aria-label={t('Selected shots')}><strong>{selectedRows.length} {t('selected')}</strong><button className="btn small" onClick={() => setSelected([])}>{t('Clear selection')}</button><button className="btn small" onClick={() => useStore.getState().batchShots(selectedRows.map(shot => shot.id), 'duplicate')}>{t('Duplicate')}</button><Menu label={t('Image source')}>{(['unknown', 'live', 'ai'] as const).map(origin => <MenuItem key={origin} onClick={() => confirm(t('Change the source of all images in selected shots? Linked frames will also change.'), () => useStore.getState().batchShots(selectedRows.map(shot => shot.id), 'origin', origin))}>{t({ unknown: 'Unmarked', live: 'Live action', ai: 'AI generated' }[origin])}</MenuItem>)}</Menu><button className="btn small" onClick={() => setPlanPicker(true)}>{t('Add to shooting plan')}</button><button className="btn small" onClick={() => setPanel('export')}>{t('Export selected shots')}</button><button className="btn small danger" onClick={() => confirm(t('Delete {count} shots? Frames and media will be preserved.', { count: selectedRows.length }), () => { useStore.getState().batchShots(selectedRows.map(shot => shot.id), 'delete'); setSelected([]) })}>{t('Delete')}</button></div>}
       <ArtComposition />
       <header className="section-header">
         <div className="section-title">
@@ -250,13 +267,13 @@ export function StoryboardEditor(): JSX.Element | null {
           </colgroup>
           <thead>
             <tr>
-              <th className="row-handle-cell">{t('Order')}</th>
+              <th className="row-handle-cell"><SelectionCheckbox label={t("Select all shots")} checked={!!board.shots.length && selectedRows.length === board.shots.length} mixed={selectedRows.length > 0 && selectedRows.length < board.shots.length} onChange={event => setSelected(event.target.checked ? board.shots.map(shot => shot.id) : [])} /></th>
               {orderedColumns.map((column) => (
                 <th key={column.id} className={column.id === frozenId ? 'frozen-column' : ''}>
                   <div className="column-header">
-                    <span title={column.name}>{t(column.name)}</span>
+                    <span title={column.name}>{storyColumnLabel(column)}</span>
                     <Menu
-                      label={t('Column menu') + ': ' + t(column.name)}
+                      label={t('Column menu') + ': ' + storyColumnLabel(column)}
                       className="column-menu contextual"
                     >
                       <MenuItem onClick={() => setEditingColumn(column)}>
@@ -308,7 +325,7 @@ export function StoryboardEditor(): JSX.Element | null {
                   <div
                     className="column-resizer"
                     role="separator"
-                    aria-label={t('Resize column') + ': ' + t(column.name)}
+                    aria-label={t('Resize column') + ': ' + storyColumnLabel(column)}
                     aria-orientation="vertical"
                     tabIndex={0}
                     onPointerDown={(event) => resizeColumn(event, column)}
@@ -342,6 +359,8 @@ export function StoryboardEditor(): JSX.Element | null {
               <tr
                 key={shot.id}
                 data-shot-id={shot.id}
+                className={selected.includes(shot.id) ? 'row-selected' : ''}
+                style={{ '--row-tint': originColor(doc, shot) ?? 'var(--bg-panel)' } as React.CSSProperties}
                 onDragOver={(event) => {
                   if (dragging.current) {
                     event.preventDefault()
@@ -357,6 +376,7 @@ export function StoryboardEditor(): JSX.Element | null {
                 }}
               >
                 <td className="row-handle-cell">
+                  <SelectionCheckbox label={t("Select shot {number}", { number: index + 1 })} checked={selected.includes(shot.id)} onChange={event => selectRow(shot.id, (event.nativeEvent as MouseEvent).shiftKey)} />
                   <div className="row-context contextual">
                     <button
                       className="icon-button drag-handle"
@@ -441,6 +461,7 @@ export function StoryboardEditor(): JSX.Element | null {
           </div>
         )}
       </div>
+      {planPicker && <Dialog title={t('Add to shooting plan')} onClose={() => setPlanPicker(false)}><label className="field">{t('Group')}<select value={planGroup} onChange={event => setPlanGroup(event.target.value)}><option value="">{t('New group')}</option>{doc.production.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label><p className="hint">{t('Shots already in this group will be skipped.')}</p><button className="btn primary" onClick={() => { useStore.getState().mutate('schedule selected shots', project => { let group = project.production.groups.find(item => item.id === planGroup); if (!group) { group = { id: newId('group'), name: t('New group'), date: '', location: '', start: '09:00', finish: '', items: [], notice: { meeting: '', personnel: '', equipment: '', emergency: '', notes: '' } }; project.production.groups.push(group) } for (const shot of selectedRows) if (!group.items.some(item => item.shotId === shot.id)) group.items.push({ id: newId('plan'), shotId: shot.id, snapshot: '', title: '', minutes: 15, preparation: 0, owner: '', cast: '', equipment: '', notes: '', status: 'pending', cells: {} }) }); setPlanPicker(false) }}>{t('Add shots')}</button></Dialog>}
       <footer className="storyboard-status">
         <span>
           {board.shots.length} {t('shots')}
@@ -487,7 +508,7 @@ export function StoryboardEditor(): JSX.Element | null {
                     setPanel(null)
                   }}
                 >
-                  {t(preset.name)}
+                  {storyColumnLabel(preset)}
                 </button>
               ))}
           </div>
@@ -600,7 +621,7 @@ export function StoryboardEditor(): JSX.Element | null {
                       .updateStoryColumn(column.id, { visible: event.target.checked })
                   }
                 />
-                <span>{t(column.name)}</span>
+                <span>{storyColumnLabel(column)}</span>
                 <button
                   className="text-button"
                   onClick={() => {

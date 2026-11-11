@@ -60,7 +60,7 @@ export function LibTVTasks({ active, revision, onLocate }: { active: boolean; re
       useStore.getState().mutate('add LibTV results to storyboard', project => {
         const targetShot = project.storyboard.shots.find(item => item.id === shot)
         if (!targetShot) return
-        const images = choose.map(id => { const media = project.media.find(item => item.id === id)!; if (media.kind === 'video' && media.durationS && !media.clip) media.clip = { sourceMediaId: media.id, inS: 0, outS: media.durationS }; return { frame: createFrame(id, 0, 0, media.name), role: 'Reference' } })
+        const images = choose.map(id => { const media = project.media.find(item => item.id === id)!; if (media.kind === 'video' && media.durationS && !media.clip) media.clip = { sourceMediaId: media.id, inS: 0, outS: media.durationS }; const linked = project.frames.find(frame => frame.mediaId === id); return { frame: { ...createFrame(id, 0, 0, media.name), origin: 'ai' as const }, sourceFrameId: linked?.id, role: 'Reference' } })
         const previous = targetShot.cells[column]
         targetShot.cells[column] = [...(Array.isArray(previous) ? previous : []), ...images] as import('@shared/types').StoryImage[]
       }); setChoose(null)

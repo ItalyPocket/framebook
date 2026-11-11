@@ -1,3 +1,4 @@
+import { setupNativeMenu, refreshNativeMenu } from './menu'
 import { setupThumbnails } from './thumbnails'
 import { setupCache } from './cache'
 import { setupMediaProtocol } from './mediaProtocol'
@@ -16,7 +17,7 @@ import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../sha
  */
 
 import { mkdirSync, existsSync, rmSync } from 'fs'
-import { app, BrowserWindow, dialog, ipcMain, shell, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { mkdir, readFile, writeFile, copyFile, stat } from 'fs/promises'
 import { join, basename, extname, resolve, sep } from 'path'
 import { execFile } from 'child_process'
@@ -84,6 +85,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  setupNativeMenu(() => mainWindow)
   // Native About panel (macOS "About Storyboard Reference Studio").
   app.setAboutPanelOptions({
     applicationName: '帧册 / Framebook',
@@ -385,12 +387,7 @@ ipcMain.handle('app:tempDir', () => app.getPath('temp'))
 
 ipcMain.handle('app:setLanguage', (_e, preference: LanguagePreference) => {
   setLanguage(resolveLanguage(preference, app.getLocale()))
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: '帧册', submenu: [{ role: 'about', label: t('About') }, { type: 'separator' }, { role: 'quit', label: t('Quit') }] },
-    { label: t('Edit'), submenu: [{ label: t('Undo'), accelerator: 'CmdOrCtrl+Z', click: () => mainWindow?.webContents.send('history:action', 'undo') }, { label: t('Redo'), accelerator: 'CmdOrCtrl+Shift+Z', click: () => mainWindow?.webContents.send('history:action', 'redo') }, { type: 'separator' }, { role: 'cut', label: t('Cut') }, { role: 'copy', label: t('Copy') }, { role: 'paste', label: t('Paste') }, { role: 'selectAll', label: t('Select all') }] },
-    { label: t('View'), submenu: [{ role: 'togglefullscreen', label: t('Fullscreen') }] },
-    { label: t('Window'), submenu: [{ role: 'minimize', label: t('Minimize') }, { role: 'zoom', label: t('Zoom') }] }
-  ]))
+  refreshNativeMenu()
 })
 
 ipcMain.handle('export:storyboard', async (_e, input: StoryboardExportInput) => {

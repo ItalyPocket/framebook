@@ -1,3 +1,4 @@
+import { frameContent, linkedShots, shotImages, setOrigin, type ImageOrigin } from '@shared/storyLinks'
 import { ensureCapture } from './lib/captureMedia'
 import { aspectRatio } from '@shared/types'
 import { t } from '@shared/i18n'
@@ -59,6 +60,9 @@ interface SbrState {
   addShots(frameIds: string[], grouped: boolean): string
   updateShot(id: string, patch: Partial<StoryShot>): void
   removeShot(id: string): void
+  batchShots(ids: string[], action: 'delete' | 'duplicate' | 'origin', origin?: ImageOrigin): void
+  setFrameContent(frameId: string, content: string, shotId?: string): void
+  setImageOrigin(frameId: string, origin: ImageOrigin): void
   duplicateShot(id: string): void
   reorderShot(id: string, toIndex: number): void
   addShotImages(id: string, frameIds: string[], columnId?: string): void
@@ -225,7 +229,7 @@ export const useStore = create<SbrState>((set, get) => ({
     get().mutate('add shots', (doc) => {
       const frames = [...doc.frames]
         .sort((a, b) => a.order - b.order)
-        .filter((frame) => frameIds.includes(frame.id))
+        .filter((frame) => frameIds.includes(frame.id)).map(frame => ({ ...frame, notes: frameContent(doc, frame) }))
       const shots =
         grouped || !frames.length
           ? [createStoryShot(frames)]
@@ -241,26 +245,35 @@ export const useStore = create<SbrState>((set, get) => ({
       if (shot) Object.assign(shot, patch, { id })
     })
   },
-  removeShot(id) {
-    get().mutate('remove shot', (doc) => {
-      doc.storyboard.shots = doc.storyboard.shots.filter((shot) => shot.id !== id)
-    })
-  },
-  duplicateShot(id) {
-    get().mutate('duplicate shot', (doc) => {
-      const index = doc.storyboard.shots.findIndex((shot) => shot.id === id)
-      if (index < 0) return
-      const copy = structuredClone(doc.storyboard.shots[index]!)
-      copy.id = newId('shot')
-      for (const column of doc.storyboard.columns.filter((item) => item.type === 'image')) {
-        const images = copy.cells[column.id] as StoryImage[] | undefined
-        images?.forEach((image) => {
-          image.frame.id = newId('still')
-        })
+  removeShot(id) { get().batchShots([id], 'delete') },
+  duplicateShot(id) { get().batchShots([id], 'duplicate') },
+  batchShots(ids, action, origin) {
+    get().mutate(`batch shots ${action}`, doc => {
+      const selected = doc.storyboard.shots.filter(shot => ids.includes(shot.id))
+      if (action === 'delete') {
+        for (const frame of doc.frames) {
+          const links = linkedShots(doc, frame.id)
+          if (links.length && links.every(shot => ids.includes(shot.id))) frame.notes = String(links[0]!.cells.description ?? frame.notes)
+        }
+        doc.storyboard.shots = doc.storyboard.shots.filter(shot => !ids.includes(shot.id))
+        for (const group of doc.production.groups) group.items = group.items.filter(item => !item.shotId || !ids.includes(item.shotId))
+      } else if (action === 'duplicate' && selected.length) {
+        const last = Math.max(...selected.map(shot => doc.storyboard.shots.indexOf(shot)))
+        const copies = selected.map(shot => { const copy = structuredClone(shot); copy.id = newId('shot'); for (const image of shotImages(copy)) image.frame.id = newId('still'); return copy })
+        doc.storyboard.shots.splice(last + 1, 0, ...copies)
+      } else if (action === 'origin' && origin) {
+        for (const shot of selected) for (const image of shotImages(shot)) setOrigin(doc, image.sourceFrameId ?? image.frame.id, origin)
       }
-      doc.storyboard.shots.splice(index + 1, 0, copy)
     })
   },
+  setFrameContent(frameId, content, shotId) {
+    get().mutate(`field:${shotId ?? frameId}:content`, doc => {
+      const shot = linkedShots(doc, frameId).find(item => item.id === shotId) ?? linkedShots(doc, frameId)[0]
+      if (shot) shot.cells.description = content
+      else { const frame = doc.frames.find(item => item.id === frameId); if (frame) frame.notes = content }
+    })
+  },
+  setImageOrigin(frameId, origin) { get().mutate('image origin', doc => setOrigin(doc, frameId, origin)) },
   reorderShot(id, toIndex) {
     get().mutate('reorder shot', (doc) => {
       const index = doc.storyboard.shots.findIndex((shot) => shot.id === id)
@@ -301,7 +314,7 @@ export const useStore = create<SbrState>((set, get) => ({
       if (doc.storyboard.columns.some((item) => item.id === column.id)) return
       doc.storyboard.columns.push(column)
       for (const shot of doc.storyboard.shots)
-        shot.cells[column.id] =
+        if (!(column.id in shot.cells)) shot.cells[column.id] =
           column.id === 'startS'
             ? (shot.startS ?? '')
             : column.id === 'endS'
@@ -345,7 +358,7 @@ export const useStore = create<SbrState>((set, get) => ({
       const current = (shot.cells[columnId] as StoryImage[] | undefined) ?? []
       shot.cells[columnId] = [
         ...current,
-        { frame: { ...structuredClone(frame), id: newId('still') }, role }
+        { sourceFrameId: doc.frames.some(item => item.id === frame.id) ? frame.id : undefined, frame: { ...structuredClone(frame), origin: frame.origin ?? (doc.media.find(item => item.id === frame.mediaId)?.libtvSource ? 'ai' : 'unknown'), id: newId('still') }, role }
       ]
     })
   },
@@ -423,6 +436,7 @@ export const useStore = create<SbrState>((set, get) => ({
     get().mutate('add frame', (doc) => {
       doc.frames.push(frame)
       const source=doc.media.find((item) => item.id===mediaId)
+      frame.origin = source?.libtvSource ? 'ai' : source?.capturedFrameId ? doc.frames.find(item => item.id === source.capturedFrameId)?.origin ?? 'unknown' : source?.kind === 'video' ? 'live' : 'unknown'
       if(source?.kind==='video') doc.media.push(createMediaItem({kind:'image',sourceFile:`media/captures/${frame.id}.png`,name:`${label || 'Frame'}.png`,width:source.width,height:source.height,capturedFrameId:frame.id}))
       if (doc.settings.gallerySort === 'time') sortFrames(doc)
     })
@@ -467,12 +481,7 @@ export const useStore = create<SbrState>((set, get) => ({
       if (f) f.label = label
     })
   },
-  setFrameNotes(frameId, notes) {
-    get().mutate(`field:${frameId}:notes`, (doc) => {
-      const f = doc.frames.find((x) => x.id === frameId)
-      if (f) f.notes = notes
-    })
-  },
+  setFrameNotes(frameId, notes) { get().setFrameContent(frameId, notes) },
   setFrameCrop(frameId, crop) {
     get().mutate('crop', (doc) => {
       const f = doc.frames.find((x) => x.id === frameId)
@@ -506,7 +515,7 @@ export const useStore = create<SbrState>((set, get) => ({
   setFrameShot(frameId, patch) {
     get().mutate('shot meta', (doc) => {
       const f = doc.frames.find((x) => x.id === frameId)
-      if (f) f.shot = { ...f.shot, ...patch }
+      if (f) { const editable = { ...patch }; delete editable.shotNo; f.shot = { ...f.shot, ...editable } }
     })
   },
   addAnnotation(frameId, annotation) {

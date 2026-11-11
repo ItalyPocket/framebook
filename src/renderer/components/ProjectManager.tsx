@@ -1,3 +1,4 @@
+import { DEFAULT_ORIGIN_COLORS } from '@shared/storyLinks'
 import { StorageCenter } from './StorageCenter'
 import { CONVERSION_FORMATS, CONVERSION_FORMAT_LABELS, type ConversionFormat } from '@shared/conversion'
 import { SearchControl } from './SearchControl'
@@ -173,6 +174,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
           (doc && folder ? (
             <section className="project-settings-content">
               <h3>{doc.name}</h3>
+              <section className="origin-settings"><h3>{t('Storyboard source colors')}</h3><label className="setting-check"><input type="checkbox" checked={doc.settings.originColors?.enabled !== false} onChange={event => useStore.getState().mutate('source color setting', project => { project.settings.originColors = { ...DEFAULT_ORIGIN_COLORS, ...project.settings.originColors, enabled: event.target.checked } })} />{t('Color rows by image source')}</label><div className="origin-color-grid">{(['ai', 'live', 'mixed'] as const).map(key => <label key={key}>{t({ ai: 'AI generated', live: 'Live action', mixed: 'Mixed sources' }[key])}<input type="color" value={doc.settings.originColors?.[key] ?? DEFAULT_ORIGIN_COLORS[key]} onChange={event => useStore.getState().mutate(`field:color:${key}`, project => { project.settings.originColors = { ...DEFAULT_ORIGIN_COLORS, ...project.settings.originColors, [key]: event.target.value } })} /></label>)}</div></section>
               <ProjectExports />
               <p className="hint">{t('Project data is saved internally. Media and exports live in the project folder; its data copy stays in sync.')}</p>
               {syncError && <p role="alert">{syncError}</p>}

@@ -117,6 +117,7 @@ export async function buildExportInputs(frames?: Frame[]): Promise<ExportFrameIn
     const media = s.media(frame.mediaId)
     const source = await compositeAnnotated(frame, still, media?.width ?? 0, media?.height ?? 0)
     inputs.push({
+      origin: frame.origin ?? (media?.libtvSource ? 'ai' : 'unknown'),
       sourcePng: source,
       label: frame.label,
       notes: frame.notes,

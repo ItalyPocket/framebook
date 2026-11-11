@@ -1,3 +1,4 @@
+import { storyColumnLabel } from '@shared/schema'
 import { StoryImages } from '../components/StoryImages'
 import { SearchControl } from '../components/SearchControl'
 import { useState } from 'react'
@@ -315,7 +316,7 @@ export function Production({ callSheet = false }: { callSheet?: boolean }): JSX.
   )
   return (
     <div className={`plan-workspace density-${density}`}>
-      <header className="production-header">
+      <header className="production-header section-header">
         <div>
           <span className="eyebrow">{callSheet ? '05 / CALL SHEET' : '04 / SHOOTING PLAN'}</span>
           <h1>{t(callSheet ? 'Call sheet' : 'Shooting plan')}</h1>
@@ -518,10 +519,10 @@ export function Production({ callSheet = false }: { callSheet?: boolean }): JSX.
                         {columns.map((c) => (
                           <th key={c.id}>
                             <div className="column-header">
-                              <span>{t(c.name)}</span>
+                              <span>{storyColumnLabel(c)}</span>
                               <Menu
                                 className="column-menu contextual"
-                                label={`${t('Column menu')}: ${t(c.name)}`}
+                                label={`${t('Column menu')}: ${storyColumnLabel(c)}`}
                               >
                                 <MenuItem onClick={() => editColumn(c)}>
                                   {t('Edit column')}
@@ -846,7 +847,7 @@ export function Production({ callSheet = false }: { callSheet?: boolean }): JSX.
                     })
                   }
                 />
-                {t(c.name)}
+                {storyColumnLabel(c)}
                 <button
                   className="icon-button"
                   aria-label={t('Delete')}
@@ -870,7 +871,7 @@ export function Production({ callSheet = false }: { callSheet?: boolean }): JSX.
                 key={c.id}
                 onClick={() => changeColumns((cols) => cols.push({ ...c, visible: true }))}
               >
-                {t(c.name)}
+                {storyColumnLabel(c)}
               </MenuItem>
             ))}
             <MenuItem

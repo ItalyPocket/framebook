@@ -45,6 +45,15 @@ export async function savePrimary(folder: string, json: string): Promise<{ prima
   const content = JSON.stringify(doc, null, 2)
   await mkdir(primary, { recursive: true })
   const previous = await readFile(join(primary, 'project.json'), 'utf8').catch(() => null)
+  const original = previous ?? await readFile(join(folder, 'project.json'), 'utf8').catch(() => null)
+  if (original) {
+    const version = Number(JSON.parse(original).version ?? 1)
+    if (version < doc.version) {
+      const recovery = join(primary, '.migrations')
+      await mkdir(recovery, { recursive: true })
+      await writeFile(join(recovery, `schema-${version}-${digest(original).slice(0, 16)}.json`), original, { flag: 'wx' }).catch(error => { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error })
+    }
+  }
   if (!previous && resolve(folder) !== resolve(primary)) {
     const recovery = join(folder, '.autosave')
     if (await stat(recovery).then(info => info.isDirectory()).catch(() => false)) await cp(recovery, join(primary, '.autosave'), { recursive: true, force: false })

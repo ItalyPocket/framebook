@@ -1,3 +1,5 @@
+import { t, type Language } from './i18n'
+import { resolveLegacyLinks, DEFAULT_ORIGIN_COLORS } from './storyLinks'
 import { parseProduction } from './production'
 /**
  * Document factories and (de)serialization. Pure — shared by main + renderer.
@@ -125,6 +127,7 @@ export function parseProject(json: string): ParseOutcome {
     settings: {
       archiveFolder: typeof settings.archiveFolder === 'string' ? settings.archiveFolder : undefined,
       exports: sanitizeExports(settings.exports),
+      originColors: (() => { const colors = settings.originColors as Record<string, unknown> | undefined; return { enabled: colors?.enabled !== false, ...Object.fromEntries(['ai', 'live', 'mixed'].map(key => [key, typeof colors?.[key] === 'string' && /^#[a-f0-9]{6}$/i.test(colors[key] as string) ? colors[key] : DEFAULT_ORIGIN_COLORS[key as 'ai' | 'live' | 'mixed']])) } as Project['settings']['originColors'] })(),
       libtv: settings.libtv && typeof settings.libtv === 'object' && typeof (settings.libtv as { projectId?: unknown }).projectId === 'string' ? { projectId: (settings.libtv as { projectId: string }).projectId, name: typeof (settings.libtv as { name?: unknown }).name === 'string' ? (settings.libtv as { name: string }).name : 'LibTV' } : undefined,
       gallerySort: settings.gallerySort === 'time' ? 'time' : 'manual',
       defaultProfileId:
@@ -134,6 +137,7 @@ export function parseProject(json: string): ParseOutcome {
       audioFile: typeof settings.audioFile === 'string' ? (settings.audioFile as string) : null
     }
   }
+  resolveLegacyLinks(doc)
   return { doc, issues }
 }
 
@@ -202,6 +206,7 @@ function sanitizeFrame(f: unknown, issues: ParseIssue[]): Frame | null {
     timeS: typeof o.timeS === 'number' ? o.timeS : 0,
     label: typeof o.label === 'string' ? o.label : '',
     notes: typeof o.notes === 'string' ? o.notes : '',
+    origin: o.origin === 'ai' || o.origin === 'live' ? o.origin : 'unknown',
     order: typeof o.order === 'number' ? o.order : 0,
     crop,
     prompt,
@@ -263,12 +268,12 @@ export function createStoryShot(frames: Frame[] = []): StoryShot {
   const cells: Record<string, StoryCell> = Object.fromEntries(columns.map((column) => [column.id, column.type === 'image' ? [] : '']))
   const shot = { id: newId('shot'), cells, startS: null, endS: null }
   const values: Record<string, string> = {
-    sceneNo: frames[0]?.shot.sceneNo ?? '', shotNo: frames[0]?.shot.shotNo ?? '', title: frames[0]?.label ?? '', shotSize: frames[0]?.shot.shotSize ?? '',
+    sceneNo: frames[0]?.shot.sceneNo ?? '', shotNo: '', title: frames[0]?.label ?? '', shotSize: frames[0]?.shot.shotSize ?? '',
     cameraAngle: frames[0]?.shot.cameraAngle ?? '', lens: frames[0]?.shot.lens ?? '', movement: frames[0]?.shot.movement ?? '',
-    transition: frames[0]?.shot.transition ?? '', description: '', composition: '', lighting: '', dialogue: '', sound: '', notes: frames[0]?.notes ?? ''
+    transition: frames[0]?.shot.transition ?? '', description: [...new Set(frames.map(frame => frame.notes.trim()).filter(Boolean))].join('\n\n'), composition: '', lighting: '', dialogue: '', sound: '', notes: ''
   }
   for (const column of columns) if (column.id in values) shot.cells[column.id] = values[column.id]!
-  shot.cells.image = frames.map((frame, index) => ({ frame: { ...structuredClone(frame), id: newId('still') }, role: index === 0 ? 'Start' : index === frames.length - 1 ? 'End' : 'Middle' }))
+  shot.cells.image = frames.map((frame, index) => ({ sourceFrameId: frame.id, frame: { ...structuredClone(frame), id: newId('still') }, role: index === 0 ? 'Start' : index === frames.length - 1 ? 'End' : 'Middle' }))
   return shot
 }
 
@@ -304,9 +309,10 @@ function sanitizeStoryboard(value: unknown, frames: Frame[], issues: ParseIssue[
       if (imageColumn && Array.isArray(shot.images)) result.cells[imageColumn.id] = shot.images.flatMap((image) => {
         if (!image || typeof image !== 'object') return []
         const entry = image as Record<string, unknown>; const frame = sanitizeFrame(entry.frame, issues)
-        return frame ? [{ frame, role: typeof entry.role === 'string' ? entry.role : '' }] : []
+        return frame ? [{ frame, sourceFrameId: typeof entry.sourceFrameId === 'string' ? entry.sourceFrameId : undefined, role: typeof entry.role === 'string' ? entry.role : '' }] : []
       })
     }
+    if (shot.cells && typeof shot.cells === 'object' && typeof (shot.cells as Record<string, unknown>).description === 'string') result.cells.description = (shot.cells as Record<string, string>).description!
     for (const key of ['startS', 'endS'] as const) if (typeof shot[key] === 'number' && Number.isFinite(shot[key]) && shot[key] >= 0) result[key] = shot[key] as number
     if ('startS' in result.cells) result.cells.startS = result.startS ?? ''
     if ('endS' in result.cells) result.cells.endS = result.endS ?? ''
@@ -347,7 +353,7 @@ function sanitizeCell(value: unknown, column: StoryColumn, issues: ParseIssue[])
     return value.flatMap((entry) => {
       if (!entry || typeof entry !== 'object') return []
       const image = entry as Record<string, unknown>; const frame = sanitizeFrame(image.frame, issues)
-      return frame ? [{ frame, role: typeof image.role === 'string' ? image.role : '' }] : []
+      return frame ? [{ frame, sourceFrameId: typeof image.sourceFrameId === 'string' ? image.sourceFrameId : undefined, role: typeof image.role === 'string' ? image.role : '' }] : []
     })
   }
   if (column.type === 'checkbox') return value === true
@@ -397,4 +403,10 @@ function sanitizeExports(raw: unknown): import('./types').ProjectExportSettings 
   const video = value.video as Record<string, unknown> | undefined
   if (video && typeof video === 'object') result.video = { format: video.format === 'mov' ? 'mov' : 'mp4', resolution: ['2160', '1080', '720'].includes(String(video.resolution)) ? video.resolution as '2160' | '1080' | '720' : 'native', muted: video.muted === true }
   return result
+}
+
+export function storyColumnLabel(column: StoryColumn, language?: Language): string {
+  const names: Record<string, string> = { shotNo: 'Shot', image: 'Image', description: 'Content', sound: 'Sound', duration: 'Duration (s)', shotSize: 'Shot size', movement: 'Movement', lens: 'Focal length', cameraAngle: 'Camera angle', transition: 'Transition', startS: 'In point (s)', endS: 'Out point (s)', reference: 'Reference image', notes: 'Notes' }
+  const preset = storyColumnPresets().find(item => item.id === column.id)
+  return preset?.name === column.name ? t(names[column.id] ?? column.name, {}, language) : column.name
 }

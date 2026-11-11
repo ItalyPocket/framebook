@@ -84,6 +84,7 @@ export interface Frame {
   timeS: number
   label: string
   notes: string
+  origin?: import('./storyLinks').ImageOrigin
   /** Sort position on the board (lower = earlier). */
   order: number
   crop: Crop | null
@@ -104,6 +105,7 @@ export interface ProjectExportSettings {
 }
 
 export interface ProjectSettings {
+  originColors?: { enabled: boolean; ai: string; live: string; mixed: string }
   exports?: ProjectExportSettings
   archiveFolder?: string
   libtv?: import('./libtv').LibTVTarget
@@ -125,7 +127,7 @@ export interface Project {
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 9
+export const PROJECT_VERSION = 10
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2
@@ -204,7 +206,7 @@ export interface StoryColumn {
   options: string[]
 }
 export type StoryCell = string | number | boolean | string[] | StoryImage[] | null
-export interface StoryImage { frame: Frame; role: string }
+export interface StoryImage { frame: Frame; role: string; sourceFrameId?: string }
 export interface StoryShot {
   id: string
   cells: Record<string, StoryCell>

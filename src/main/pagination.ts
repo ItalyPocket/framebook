@@ -64,7 +64,7 @@ export function paginateStoryboard(pageHeight: number): void {
     }
     let continuation = false
     while (remaining.some((cell) => cell.textContent?.length || cell.children.length)) {
-      const row = document.createElement('tr')
+      const row = original.cloneNode(false) as HTMLTableRowElement
       for (const cell of remaining) {
         const td = document.createElement('td')
         td.innerHTML = cell.innerHTML
@@ -77,7 +77,7 @@ export function paginateStoryboard(pageHeight: number): void {
       const hadRows = Array.from(current.tbody.rows).some(
         (row) => !row.classList.contains('group-heading')
       )
-      const fragment = document.createElement('tr')
+      const fragment = original.cloneNode(false) as HTMLTableRowElement
       const next: HTMLDivElement[] = []
       for (const cell of remaining) {
         const td = document.createElement('td')
