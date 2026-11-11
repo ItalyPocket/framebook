@@ -1,5 +1,5 @@
+import { StorageCenter } from './StorageCenter'
 import { CONVERSION_FORMATS, CONVERSION_FORMAT_LABELS, type ConversionFormat } from '@shared/conversion'
-import { LibTVConnection } from './LibTV'
 import { SearchControl } from './SearchControl'
 import { useEffect, useState } from 'react'
 import { ProjectExports } from './ProjectExports'
@@ -11,7 +11,7 @@ import { useSettings } from '../settings'
 import { Dialog } from './Controls'
 
 export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
-  const [tab, setTab] = useState<'general' | 'project'>('general')
+  const [tab, setTab] = useState<'general' | 'project' | 'storage'>('general')
   const doc = useStore((state) => state.doc)
   const folder = useStore((state) => state.projectFolder)
   const [recovering, setRecovering] = useState(false)
@@ -65,8 +65,10 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
         <button className={tab === 'project' ? 'active' : ''} onClick={() => setTab('project')}>
           {t('Project settings')}
         </button>
+        <button className={tab === 'storage' ? 'active' : ''} onClick={() => setTab('storage')}>{t('Storage and migration')}</button>
       </nav>
       <div key={tab} className="settings-page">
+        {tab === 'storage' && <StorageCenter />}
         {tab === 'general' && value && (
           <div className="settings-grid">
             <section>
@@ -177,7 +179,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
               <button className="btn" onClick={() => {
                 if (window.confirm(t('Replace the external data copy with the internally saved project? Media files will be preserved.'))) void window.sbr.resolveSync(folder).catch(error => setError(String(error)))
               }}>{t('Sync internal project to archive')}</button>
-              <LibTVConnection />
+              <button className="btn" onClick={() => { useStore.getState().setWorkspace('libtv'); onClose() }}>{t('Open LibTV studio')}</button>
               <p className="hint">
                 {t('Rename the project by clicking its name in the top left.')}
               </p>
@@ -284,6 +286,7 @@ export function ProjectLibrary({
   searchInitiallyOpen?: boolean
   onOpened?(): void
 }): JSX.Element {
+  const [migration, setMigration] = useState(false)
   const [projects, setProjects] = useState<ProjectEntry[]>([])
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
@@ -323,6 +326,8 @@ export function ProjectLibrary({
   }
   return (
     <Dialog title={t('Project library')} onClose={onClose} wide>
+      <button className="btn" onClick={() => setMigration(!migration)}>{t('Storage and migration')}</button>
+      {migration && <StorageCenter />}
       <div className="library-actions">
         <input
           aria-label={t('Project name')}

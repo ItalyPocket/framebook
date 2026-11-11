@@ -27,3 +27,17 @@ Canonical project JSON and recovery history remain in the application data direc
 图片及视频生成入口位于 LibTV 创作面板。模型和参数从 CLI 读取，开始生成前需要确认账户额度使用。停止本地等待不会取消云端生成，也不会退款；需在 LibTV 管理云端任务。生成结果可以下载进素材库。账户额度、价格及模型可用性由 LibTV 决定。
 
 Install the official CLI, then use Project settings → LibTV → Sign in. Finish browser login and choose a workspace and canvas. No legacy access key is needed. Uploads create and verify resource nodes. Generation requires explicit credit-use confirmation; stopping local waiting does not cancel a cloud task. Downloaded results can be added to the media library. Credentials stay local.
+
+## 2.8 迁移、缓存与画布工作区 / Migration, cache and canvas workspace
+
+“设置 → 存储与迁移”或项目库的同名入口可扫描 `.sbref` 和 ZIP，查看媒体清单、容量、缺失文件及同 ID 项目摘要。选择目标后复制并核验 SHA-256，成功后登记内部主数据与外部归档；原文件始终保留。便携打包默认收集外部媒体，不包含导出、缓存、登录凭据及本机偏好。缺失素材必须重新关联或明确允许不完整导入。高于版本 9 的工程不会被降级写回。
+
+预览缓存默认 2GB，图片解码预算 256MB；视频按需读取。清理缓存不会删除唯一静帧或原素材。GPU 缓存重建在下次启动执行；当前 Electron 保留硬件加速，但不保证所有 Skia 着色器都落盘。相关依据：[Electron Session](https://www.electronjs.org/docs/latest/api/session)、[上游问题](https://github.com/electron/electron/issues/54112)。
+
+LibTV 创作工作区左侧浏览本地素材与节点，中间查看真实画布，右侧编辑生成参数，底部管理任务。点击输出端口再点击目标输入端口添加参考；右侧可排序或移除。拖入本地素材后仍需确认目标，上传完成重新读取画布。切换账户后请重新选择工作区与画布。参考 [CLI 使用经验](https://xueai.me/library/liblib-tv/)，具体命令以本机官方 1.2.0 文档核验。
+
+模型、参数及额度由 LibTV 决定，帧册不估算价格。生成前明确确认；停止等待只隐藏等待状态，后台 CLI 继续处理，不代表云端取消。重开后查询原节点恢复；状态未知时先检查官网，不自动重提任务。结果按来源节点避免重复下载。
+
+Use Settings → Storage and migration, or the project library shortcut, to scan archives and ZIP packages before copying. Files are verified by SHA-256; originals and recovery data are retained. Duplicate IDs default to independent copies. Missing media requires relinking or explicit incomplete import. Future project versions are never downgraded.
+
+The dedicated LibTV workspace provides real canvas nodes, edges, draggable positions, reference ordering, model-driven controls and recoverable tasks. Uploads are confirmed and verified on the destination canvas. Generation always requires credit-use confirmation. Stop waiting leaves the CLI running in the background and does not cancel a cloud job. Unknown tasks are checked instead of automatically resubmitted. Credentials and runtime state stay outside portable projects.

@@ -1,3 +1,4 @@
+import { useVisible } from '../lib/useVisible'
 import { createPortal } from 'react-dom'
 import { SearchControl } from '../components/SearchControl'
 import { t } from '@shared/i18n'
@@ -8,7 +9,7 @@ import { t } from '@shared/i18n'
 
 import { useCallback, useEffect, useState } from 'react'
 import { useStore, currentProjectJson } from '../store'
-import { useMediaUrl } from '../lib/useMediaUrl'
+import { useThumbnailUrl } from '../lib/useMediaUrl'
 import { newId } from '@shared/schema'
 import { Dialog } from '../components/Controls'
 import type { MediaItem } from '@shared/types'
@@ -31,12 +32,14 @@ function BinItem({
   onMenu(event: React.MouseEvent | React.KeyboardEvent): void
   onSelect(event: React.MouseEvent): void
 }): JSX.Element {
-  const url = useMediaUrl(item)
+  const [visibleRef, visible] = useVisible<HTMLDivElement>()
+  const url = useThumbnailUrl(item, visible)
   const active = useStore((s) => s.selectedMediaId === item.id)
   const dims = item.width && item.height ? `${item.width}×${item.height}` : '—'
   const dur = item.durationS ? ` · ${item.durationS.toFixed(1)}s` : ''
   return (
     <div
+      ref={visibleRef}
       draggable
       onDragStart={(event) => event.dataTransfer.setData('application/framebook-media', item.id)}
       tabIndex={0}
@@ -50,17 +53,7 @@ function BinItem({
       onContextMenu={onMenu}
       onClick={onSelect}
     >
-      {item.kind === 'video' ? (
-        url ? (
-          <video className="bin-thumb" src={url} muted preload="metadata" onLoadedMetadata={event => { if (item.clip) event.currentTarget.currentTime = item.clip.inS }} />
-        ) : (
-          <div className="bin-thumb" />
-        )
-      ) : url ? (
-        <img className="bin-thumb" src={url} alt={item.name} />
-      ) : (
-        <div className="bin-thumb" />
-      )}
+      {url ? <img className="bin-thumb" src={url} alt={item.name} loading="lazy" /> : <div className="bin-thumb" />}
       <div className="bin-meta">
         <div className="bin-name" title={item.name}>
           {item.name}

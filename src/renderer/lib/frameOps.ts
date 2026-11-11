@@ -80,6 +80,11 @@ export async function compositeAnnotated(frame: Frame, stillPath: string, w: num
   const rel = `.frames${sep}anno-${frame.id}-${annotationsHash(frame)}.png`
   try {
     const stillRel = stillPath.startsWith(folder) ? stillPath.slice(folder.length).replace(/^[/\\]/, '') : stillPath
+    const cached = await window.sbr.compositeCache(folder, stillRel, svg)
+    if (cached) {
+      const encoded = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]!); reader.onerror = reject; reader.readAsDataURL(new Blob([new Uint8Array(cached)], { type: 'image/png' })) })
+      if (await window.sbr.writeProjectPng(folder, rel, encoded)) return `${folder}${sep}${rel}`
+    }
     const buf = await window.sbr.readProjectFile(folder, stillRel)
     const stillUrl = URL.createObjectURL(new Blob([buf], { type: 'image/png' }))
     const svgUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
@@ -93,6 +98,7 @@ export async function compositeAnnotated(frame: Frame, stillPath: string, w: num
     URL.revokeObjectURL(stillUrl)
     const dataUrl = canvas.toDataURL('image/png')
     const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+    await window.sbr.compositeCache(folder, stillRel, svg, base64)
     const ok = await window.sbr.writeProjectPng(folder, rel, base64)
     return ok ? `${folder}${sep}${rel}` : stillPath
   } catch {

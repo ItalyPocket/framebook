@@ -49,10 +49,10 @@ interface SbrState {
   /** Selected board frame (opens in the inspector). */
   selectedFrameId: string | null
   seekTime: number | null
-  workspace: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet'
+  workspace: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet' | 'libtv'
   history: Project[]
   future: Project[]
-  setWorkspace(value: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet'): void
+  setWorkspace(value: 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet' | 'libtv'): void
   undo(): void
   redo(): void
   sortGallery(): void
@@ -177,9 +177,9 @@ export const useStore = create<SbrState>((set, get) => ({
   },
 
   loadFromJson(folder, json) {
-    const { doc } = parseProject(json)
+    const { doc, issues } = parseProject(json)
     if (!doc) {
-      get().toast(t('Could not open project: invalid project.json'), 'error')
+      get().toast(t(issues[0]?.message === 'This project requires a newer version of Framebook' ? issues[0].message : 'Could not open project: invalid project.json'), 'error')
       return false
     }
     set({

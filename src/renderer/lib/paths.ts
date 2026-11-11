@@ -1,32 +1,16 @@
-/**
- * Small renderer-side helpers for turning project-relative media paths into
- * absolute paths (for ffmpeg IPC) and blob URLs (for <img>/<video> src).
- */
-
-const blobCache = new Map<string, string>()
-
-/** Absolute path to a project-relative media file, e.g. "media/x.mp4". */
+const pending = new Map<string, Promise<string>>()
 export function absMediaPath(folder: string, sourceFile: string): string {
-  // Cross-platform join without importing node 'path' in the renderer.
-  const sepChar = folder.includes('\\') ? '\\' : '/'
-  const rel = sourceFile.replace(/[/\\]/g, sepChar)
-  return folder.endsWith(sepChar) ? folder + rel : folder + sepChar + rel
+  const separator = folder.includes('\\') ? '\\' : '/'
+  return folder.replace(/[/\\]$/, '') + separator + sourceFile.replace(/[/\\]/g, separator)
 }
-
-/** Load a project file as a blob URL, cached by key. */
-export async function projectFileUrl(
-  folder: string,
-  relativePath: string,
-  mime: string
-): Promise<string> {
+export async function projectFileUrl(folder: string, relativePath: string, _mime: string): Promise<string> {
   const key = `${folder}::${relativePath}`
-  const cached = blobCache.get(key)
-  if (cached) return cached
-  const buf = await window.sbr.readProjectFile(folder, relativePath)
-  const url = URL.createObjectURL(new Blob([buf], { type: mime }))
-  blobCache.set(key, url)
-  return url
+  if (pending.has(key)) return pending.get(key)!
+  const request = window.sbr.mediaUrl(folder, relativePath).finally(() => pending.delete(key))
+  pending.set(key, request)
+  return request
 }
+export function releaseProjectMedia(folder: string): void { pending.clear(); void window.sbr.releaseMedia(folder) }
 
 export function mimeForMedia(name: string): string {
   const ext = name.toLowerCase().split('.').pop() ?? ''

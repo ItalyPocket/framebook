@@ -21,6 +21,7 @@ export interface ImportedMedia {
   height: number
   durationS?: number
   fps?: number
+  libtvSource?: { projectId: string; node: string; taskId: string }
 }
 
 export interface ImportedAudio {
@@ -51,6 +52,29 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  thumbnailUrl(folder: string, path: string, time?: number): Promise<string>
+  compositeCache(folder: string, source: string, signature: string, encoded?: string): Promise<Uint8Array | null>
+  mediaUrl(folder: string, path: string): Promise<string>
+  releaseMedia(folder: string): Promise<void>
+  cacheStats(): Promise<import('../shared/libtvCanvas').CacheStats>
+  cacheConfigure(bytes: number): Promise<void>
+  cacheClear(gpu?: boolean): Promise<void>
+  migrationRelink(id: string, original: string): Promise<import('../shared/migration').MigrationScan>
+  migrationScan(folder?: string): Promise<import('../shared/migration').MigrationScan | null>
+  migrationRun(id: string, options: import('../shared/migration').MigrationOptions): Promise<import('../shared/migration').MigrationJob>
+  migrationStatus(id: string): Promise<import('../shared/migration').MigrationJob | null>
+  migrationCancel(id: string): Promise<void>
+  migrationRelease(id: string): Promise<void>
+  libtvGraph(project: string): Promise<import('../shared/libtvCanvas').LibTVGraph>
+  libtvNodeDetail(project: string, node: string): Promise<Partial<import('../shared/libtvCanvas').LibTVNode>>
+  libtvEditNode(project: string, node: string, edit: import('../shared/libtvCanvas').LibTVNodeEdit): Promise<import('../shared/libtvCanvas').LibTVGraph>
+  libtvDeleteNode(project: string, node: string): Promise<import('../shared/libtvCanvas').LibTVGraph>
+  libtvCreateCanvas(name: string, workspace?: string): Promise<{ id: string; name: string }>
+  libtvCreateNode(project: string, type: 'image' | 'video', x: number, y: number): Promise<{ graph: import('../shared/libtvCanvas').LibTVGraph; node: string }>
+  libtvCachedRead(kind: 'models' | 'schema' | 'workspaces' | 'canvases', key?: string, refresh?: boolean): Promise<{ value: unknown; fetchedAt: number; stale?: boolean }>
+  libtvRecoverTasks(project: string): Promise<import('../shared/libtvGeneration').LibTVGenerationTask[]>
+  libtvTrackNode(project: string, node: string): Promise<import('../shared/libtvGeneration').LibTVGenerationTask>
+
   libtvGenerate(input: import('../shared/libtvGeneration').LibTVGenerationInput): Promise<import('../shared/libtvGeneration').LibTVGenerationTask>
   libtvTasks(): Promise<import('../shared/libtvGeneration').LibTVGenerationTask[]>
   libtvDetach(id: string): Promise<void>
@@ -60,6 +84,8 @@ export interface SbrAPI {
   onProjectSync(cb: (value: { folder: string; state: string; error?: string }) => void): () => void
   libtvLogin(): Promise<{ state: string; error?: string }>
   libtvLoginStatus(): Promise<{ state: string; error?: string } | null>
+  libtvAccounts(): Promise<unknown>
+  libtvUseAccount(id: string): Promise<unknown>
   libtvAccount(): Promise<unknown>
   libtvWorkspaces(): Promise<unknown>
   libtvCanvases(workspace?: string, page?: number): Promise<{ id: string; name: string }[]>
@@ -153,6 +179,29 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  thumbnailUrl: (folder, path, time) => ipcRenderer.invoke('media:thumbnail', folder, path, time),
+  compositeCache: (folder, source, signature, encoded) => ipcRenderer.invoke('cache:composite', folder, source, signature, encoded),
+  mediaUrl: (folder, path) => ipcRenderer.invoke('media:url', folder, path),
+  releaseMedia: (folder) => ipcRenderer.invoke('media:release', folder),
+  cacheStats: () => ipcRenderer.invoke('cache:stats'),
+  cacheConfigure: (bytes) => ipcRenderer.invoke('cache:configure', bytes),
+  cacheClear: (gpu) => ipcRenderer.invoke('cache:clear', gpu),
+  migrationRelink: (id, original) => ipcRenderer.invoke('migration:relink', id, original),
+  migrationScan: (folder) => ipcRenderer.invoke('migration:scan', folder),
+  migrationRun: (id, options) => ipcRenderer.invoke('migration:run', id, options),
+  migrationStatus: (id) => ipcRenderer.invoke('migration:status', id),
+  migrationCancel: (id) => ipcRenderer.invoke('migration:cancel', id),
+  migrationRelease: (id) => ipcRenderer.invoke('migration:release', id),
+  libtvGraph: (project) => ipcRenderer.invoke('libtv:graph', project),
+  libtvNodeDetail: (project, node) => ipcRenderer.invoke('libtv:nodeDetail', project, node),
+  libtvEditNode: (project, node, edit) => ipcRenderer.invoke('libtv:editNode', project, node, edit),
+  libtvDeleteNode: (project, node) => ipcRenderer.invoke('libtv:deleteNode', project, node),
+  libtvCreateCanvas: (name, workspace) => ipcRenderer.invoke('libtv:createCanvas', name, workspace),
+  libtvCreateNode: (project, type, x, y) => ipcRenderer.invoke('libtv:createNode', project, type, x, y),
+  libtvCachedRead: (kind, key, refresh) => ipcRenderer.invoke('libtv:cachedRead', kind, key, refresh),
+  libtvRecoverTasks: (project) => ipcRenderer.invoke('libtv:recoverTasks', project),
+  libtvTrackNode: (project, node) => ipcRenderer.invoke('libtv:trackNode', project, node),
+
   libtvGenerate: (input) => ipcRenderer.invoke('libtv:generate', input),
   libtvTasks: () => ipcRenderer.invoke('libtv:tasks'),
   libtvDetach: (id) => ipcRenderer.invoke('libtv:detach', id),
@@ -166,6 +215,8 @@ const api: SbrAPI = {
   },
   libtvLogin: () => ipcRenderer.invoke('libtv:login'),
   libtvLoginStatus: () => ipcRenderer.invoke('libtv:loginStatus'),
+  libtvAccounts: () => ipcRenderer.invoke('libtv:accounts'),
+  libtvUseAccount: (id) => ipcRenderer.invoke('libtv:useAccount', id),
   libtvAccount: () => ipcRenderer.invoke('libtv:account'),
   libtvWorkspaces: () => ipcRenderer.invoke('libtv:workspaces'),
   libtvCanvases: (workspace, page) => ipcRenderer.invoke('libtv:canvases', workspace, page),

@@ -41,6 +41,7 @@ export function createMediaItem(
     folderId: fields.folderId,
     capturedFrameId: fields.capturedFrameId,
     clip: fields.clip,
+    libtvSource: fields.libtvSource,
     name: fields.name,
     durationS: fields.durationS,
     width: fields.width,
@@ -99,6 +100,7 @@ export function parseProject(json: string): ParseOutcome {
     return { doc: null, issues: [{ message: 'project is not an object' }] }
   }
   const o = raw as Record<string, unknown>
+  if (typeof o.version === 'number' && o.version > PROJECT_VERSION) return { doc: null, issues: [{ message: 'This project requires a newer version of Framebook' }] }
   const issues: ParseIssue[] = []
 
   const media: MediaItem[] = Array.isArray(o.media)
@@ -153,6 +155,7 @@ function sanitizeMedia(m: unknown, issues: ParseIssue[]): MediaItem | null {
     workingFile: typeof o.workingFile === 'string' ? o.workingFile : undefined,
     externalPath: typeof o.externalPath === 'string' ? o.externalPath : undefined,
     clip: sanitizeClip(o.clip),
+    libtvSource: o.libtvSource && typeof o.libtvSource === 'object' && typeof (o.libtvSource as Record<string, unknown>).projectId === 'string' && typeof (o.libtvSource as Record<string, unknown>).node === 'string' && typeof (o.libtvSource as Record<string, unknown>).taskId === 'string' ? o.libtvSource as MediaItem['libtvSource'] : undefined,
     capturedFrameId: typeof o.capturedFrameId === 'string' ? o.capturedFrameId : undefined,
     folderId: typeof o.folderId === 'string' ? o.folderId : undefined,
     name: typeof o.name === 'string' ? o.name : o.sourceFile,

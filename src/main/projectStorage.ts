@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { readFile, writeFile, mkdir, rename, readdir, stat, cp, rm } from 'fs/promises'
 import { join, resolve, relative, isAbsolute, sep } from 'path'
 import { createHash } from 'crypto'
+import { createReadStream } from 'fs'
 import type { Project } from '../shared/types'
 
 const digest = (value: string): string => createHash('sha256').update(value).digest('hex')
@@ -65,6 +66,7 @@ export async function syncArchive(folder: string, primary: string, content: stri
     for (const window of BrowserWindow.getAllWindows()) window.webContents.send('project:sync', { folder, state: 'error', error: String(error) })
   }
 }
+async function mediaHash(path: string): Promise<string> { const value = createHash('sha256'); for await (const chunk of createReadStream(path)) value.update(chunk); return value.digest('hex') }
 async function verifyCopy(source: string, destination: string): Promise<void> {
   for (const entry of await readdir(source, { withFileTypes: true })) {
     if (['.autosave', '.sync.json'].includes(entry.name)) continue
@@ -72,7 +74,7 @@ async function verifyCopy(source: string, destination: string): Promise<void> {
     const from = join(source, entry.name)
     const to = join(destination, entry.name)
     if (entry.isDirectory()) await verifyCopy(from, to)
-    else if ((await stat(from)).size !== (await stat(to)).size) throw new Error('媒体复制校验失败')
+    else if ((await stat(from)).size !== (await stat(to)).size || await mediaHash(from) !== await mediaHash(to)) throw new Error('媒体复制校验失败')
   }
 }
 export async function moveArchive(folder: string, destination: string, json: string): Promise<string> {

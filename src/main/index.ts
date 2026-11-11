@@ -1,3 +1,8 @@
+import { setupThumbnails } from './thumbnails'
+import { setupCache } from './cache'
+import { setupMediaProtocol } from './mediaProtocol'
+import { setupMigration } from './migration'
+import { setupLibTVCanvas } from './libtvCanvas'
 import { projectData, primaryFolder } from './projectStorage'
 import { setupLibTVGeneration } from './libtvGeneration'
 import { setupClips } from './clips'
@@ -10,7 +15,7 @@ import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../sha
  * the renderer talks through the typed IPC surface in src/preload.
  */
 
-import { mkdirSync } from 'fs'
+import { mkdirSync, existsSync, rmSync } from 'fs'
 import { app, BrowserWindow, dialog, ipcMain, shell, Menu } from 'electron'
 import { mkdir, readFile, writeFile, copyFile, stat } from 'fs/promises'
 import { join, basename, extname, resolve, sep } from 'path'
@@ -35,7 +40,12 @@ import { version as APP_VERSION } from '../../package.json'
 
 if (process.env.SBR_SMOKE_DIR) {
   const data = join(process.env.SBR_SMOKE_DIR, '.app-data')
-  mkdirSync(data, { recursive: true }); app.setPath('userData', data)
+  mkdirSync(data, { recursive: true }); app.setPath('userData', data); app.setPath('sessionData', data)
+}
+
+if (existsSync(join(app.getPath('userData'), 'gpu-rebuild'))) {
+  for (const name of ['GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'ShaderCache', 'GrShaderCache']) rmSync(join(app.getPath('sessionData'), name), { recursive: true, force: true })
+  rmSync(join(app.getPath('userData'), 'gpu-rebuild'), { force: true })
 }
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
@@ -82,6 +92,11 @@ app.whenReady().then(() => {
     copyright: 'Apache-2.0'
   })
   setupConversion()
+  setupCache()
+  setupThumbnails(resolveReadablePath)
+  setupMediaProtocol(resolveReadablePath)
+  setupMigration()
+  setupLibTVCanvas()
   setupWorkspace()
   setupPreviews()
   setupLibTV(resolveReadablePath)

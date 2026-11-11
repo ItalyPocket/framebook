@@ -9,7 +9,7 @@
 > **Latest release: 2.5.1 · Apple Silicon Mac.** [Download the DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1). Screenshots below were captured in 2.5.0.
 
 
-> Current source: **2.7.0-beta.7**. Adds video ranges, per-project export defaults, internal data backups and LibTV CLI login. See [setup and storage details](docs/VIDEO-LIBTV.md).
+> Current source: **2.8.0-beta.1**. Adds video ranges, per-project export defaults, internal data backups and LibTV CLI login. See [setup and storage details](docs/VIDEO-LIBTV.md).
 
 ## From reference to shooting plan
 

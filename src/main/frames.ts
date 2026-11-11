@@ -1,3 +1,5 @@
+import { cachedBytes, fileKey } from './cache'
+import { mediaWork } from './mediaQueue'
 /**
  * Frame extraction from videos via ffmpeg. Three range modes:
  *   - interval: one frame every N seconds
@@ -5,7 +7,7 @@
  *   - scene:    ffmpeg scene-change detection (select gt(scene,threshold))
  */
 
-import { mkdir, mkdtemp, stat } from 'fs/promises'
+import { mkdir, mkdtemp, stat, readFile, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { resolveFfmpeg, run } from './ffmpeg'
 
@@ -15,14 +17,20 @@ export async function extractFrame(
   timeS: number,
   outPng: string
 ): Promise<{ ok: boolean; error?: string; path: string }> {
-  const ffmpeg = await resolveFfmpeg()
-  await mkdir(dirname(outPng), { recursive: true })
-  // -ss before -i is fast (keyframe seek); accurate enough for stills.
-  const res = await run(ffmpeg, [
-    '-y', '-ss', String(Math.max(0, timeS)), '-i', mediaPath, '-frames:v', '1', outPng
-  ])
-  if (res.code !== 0 || !(await stat(outPng).catch(() => null))?.size) return { ok: false, error: res.stderr.slice(-400), path: outPng }
-  return { ok: true, path: outPng }
+  try {
+    const key = await fileKey(mediaPath, ['still-v1', Math.max(0, timeS)])
+    const bytes = await cachedBytes(key, () => mediaWork(async () => {
+      const ffmpeg = await resolveFfmpeg()
+      await mkdir(dirname(outPng), { recursive: true })
+      const result = await run(ffmpeg, ['-y', '-ss', String(Math.max(0, timeS)), '-i', mediaPath, '-frames:v', '1', outPng])
+      if (result.code !== 0 || !(await stat(outPng).catch(() => null))?.size) throw new Error(result.stderr.slice(-400))
+      return readFile(outPng)
+    }))
+    await mkdir(dirname(outPng), { recursive: true })
+    await writeFile(outPng, bytes)
+    return { ok: true, path: outPng }
+  } catch (error) { return { ok: false, error: String(error), path: outPng } }
+
 }
 
 export type RangeMode =

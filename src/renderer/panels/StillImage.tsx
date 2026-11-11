@@ -2,18 +2,22 @@ import { useEffect, useState } from 'react'
 import type { Frame } from '@shared/types'
 import { t } from '@shared/i18n'
 import { useStore } from '../store'
-import { ensureStill } from '../lib/frameOps'
-import { useAbsUrl } from '../lib/useMediaUrl'
+import { ensureCapture } from '../lib/captureMedia'
+import { useVisible } from '../lib/useVisible'
 
 export function StillImage({ frame }: { frame: Frame }): JSX.Element {
-  const clipTime = useStore(state => state.doc?.media.find(media => media.id === frame.mediaId)?.clip?.inS)
-  const still = useStore((s) => s.stills[frame.id])
-  const url = useAbsUrl(still?.path ?? null)
+  const folder = useStore(state => state.projectFolder)
+  const media = useStore(state => state.doc?.media.find(item => item.id === frame.mediaId))
+  const [visibleRef, visible] = useVisible<HTMLImageElement>()
+  const [url, setUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   useEffect(() => {
-    let active = true
-    if (!still || (clipTime !== undefined && still.timeS !== clipTime)) void ensureStill(frame.id, frame).then((path) => { if (active) setFailed(!path) }).catch(() => { if (active) setFailed(true) })
-    return () => { active = false }
-  }, [frame.id, still, clipTime])
-  return url ? <img src={url} alt={frame.label || t('frame still')} /> : <span className="still-placeholder">{t(failed ? 'Could not extract the frame image.' : 'Loading…')}</span>
+    let alive = true
+    setUrl(null); setFailed(false)
+    if (!visible || !folder || !media) return
+    const source = media.workingFile ?? media.externalPath ?? media.sourceFile
+    void (media.capturedFrameId ? ensureCapture(media.capturedFrameId) : Promise.resolve()).then(() => window.sbr.thumbnailUrl(folder, source, media.kind === 'image' ? 0 : media.clip?.inS ?? frame.timeS)).then(value => { if (alive) setUrl(value) }).catch(() => { if (alive) setFailed(true) })
+    return () => { alive = false }
+  }, [visible, folder, media?.id, media?.workingFile, media?.externalPath, media?.clip?.inS, frame.timeS])
+  return <img ref={visibleRef} src={visible && url ? url : undefined} width={media?.width || 320} height={media?.height || 180} loading="lazy" alt={failed ? t('Could not extract the frame image.') : frame.label || t('frame still')} />
 }

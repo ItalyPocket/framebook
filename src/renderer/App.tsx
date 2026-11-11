@@ -1,3 +1,5 @@
+import { releaseProjectMedia } from './lib/paths'
+import { LibTVWorkspace } from './panels/LibTVWorkspace'
 import { DraftConverter } from './components/DraftConverter'
 import { ClipExports } from './components/ClipExports'
 import { LibTVUploads } from './components/LibTV'
@@ -272,6 +274,8 @@ export function App(): JSX.Element {
   const doc = useStore((s) => s.doc)
   useEffect(() => setHome(false), [doc?.id])
   const workspace = useStore((s) => s.workspace)
+  const mediaFolder = useStore(state => state.projectFolder)
+  useEffect(() => () => { if (mediaFolder) releaseProjectMedia(mediaFolder) }, [mediaFolder])
   const canUndo = useStore((s) => s.history.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const dirty = useStore((s) => s.dirty)
@@ -417,7 +421,7 @@ export function App(): JSX.Element {
         <TopAction icon="help" label="Help" onClick={() => useStore.getState().setHelpOpen(true)} />
       </div>
       <nav className="workspace-nav">
-        {(['capture', 'gallery', 'storyboard', 'planning', 'callsheet'] as const).map(
+        {(['capture', 'gallery', 'storyboard', 'planning', 'callsheet', 'libtv'] as const).map(
           (value, index) => (
             <button
               key={value}
@@ -431,7 +435,8 @@ export function App(): JSX.Element {
                   gallery: 'Frame gallery',
                   storyboard: 'Storyboard editor',
                   planning: 'Shooting plan',
-                  callsheet: 'Call sheet'
+                  callsheet: 'Call sheet',
+                  libtv: 'LibTV studio'
                 }[value]
               )}
             </button>
@@ -478,6 +483,7 @@ export function App(): JSX.Element {
             {visited.current.views.has(view) && <Production callSheet={view === 'callsheet'} />}
           </div>
         ))}
+        <div className={`workspace-page ${workspace === 'libtv' ? 'active' : 'inactive'}`} aria-hidden={workspace !== 'libtv'}>{visited.current.views.has('libtv') && <LibTVWorkspace active={workspace === 'libtv'} />}</div>
         <div
           key={workspace}
           className="workspace-wipe"
@@ -488,7 +494,8 @@ export function App(): JSX.Element {
               gallery: 'GALLERY',
               storyboard: 'STORYBOARD',
               planning: 'SHOOTING PLAN',
-              callsheet: 'CALL SHEET'
+              callsheet: 'CALL SHEET',
+              libtv: 'LIBTV STUDIO'
             }[workspace]
           }
           aria-hidden="true"

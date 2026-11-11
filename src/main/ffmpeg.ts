@@ -9,6 +9,7 @@
  * `ffmpeg` spawn fails even when Homebrew has it — hence the absolute-path probes.
  */
 
+import { cachedJson, fileKey } from './cache'
 import { spawn } from 'child_process'
 import { access } from 'fs/promises'
 
@@ -80,6 +81,10 @@ export interface ProbeInfo {
 /** Probe media dimensions / duration / fps. Prefers ffprobe; falls back to
  *  parsing ffmpeg -i stderr, which is always available (ffmpeg-static). */
 export async function probeMedia(filePath: string): Promise<ProbeInfo> {
+  return cachedJson(await fileKey(filePath, 'probe-v1'), () => probeUncached(filePath))
+}
+
+async function probeUncached(filePath: string): Promise<ProbeInfo> {
   const ffprobe = await resolveFfprobe()
   if (ffprobe) {
     const res = await run(ffprobe, [

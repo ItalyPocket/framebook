@@ -5,7 +5,7 @@ import { homedir } from 'os'
 import { spawn, type ChildProcess } from 'child_process'
 
 export async function libtvCommand(args: string[], onSpawn?: (child: ChildProcess) => void): Promise<unknown> {
-  const binary = join(homedir(), '.libtv', 'libtv')
+  const binary = process.env.SBR_SMOKE_DIR && process.env.SBR_LIBTV_BIN ? process.env.SBR_LIBTV_BIN : join(homedir(), '.libtv', 'libtv')
   await access(binary).catch(() => { throw new Error('请先安装 LibTV CLI') })
   const cwd = join(app.getPath('userData'), 'LibTV')
   await mkdir(cwd, { recursive: true })

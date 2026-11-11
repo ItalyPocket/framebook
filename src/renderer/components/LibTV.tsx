@@ -1,9 +1,8 @@
-import { LibTVStudio } from './LibTVStudio'
 import { StillImage } from '../panels/StillImage'
 import { useMediaUrl } from '../lib/useMediaUrl'
 import type { MediaItem, Frame } from '@shared/types'
 import { useEffect, useState } from 'react'
-import { t } from '@shared/i18n'
+import { t, errorMessage } from '@shared/i18n'
 import type { LibTVFile, LibTVJob } from '@shared/libtv'
 import { useStore, currentProjectJson } from '../store'
 import { useSettings } from '../settings'
@@ -20,6 +19,7 @@ function MediaThumbnail({media}:{media:MediaItem}):JSX.Element { const url=useMe
 export function LibTVConnection(): JSX.Element {
   const target = useStore(state => state.doc?.settings.libtv)
   const [account, setAccount] = useState('')
+  const [accounts, setAccounts] = useState<{ accountId: string; accountName: string; isActive?: boolean }[]>([])
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
   const [workspace, setWorkspace] = useState('')
   const [canvasPage, setCanvasPage] = useState(1)
@@ -31,7 +31,7 @@ export function LibTVConnection(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const refresh = async (): Promise<void> => {
     setBusy(true)
-    try { const info = await window.sbr.libtvAccount() as { activeAccount?: { accountName?: string }; user?: { nickname?: string } }; setAccount(info.activeAccount?.accountName ?? info.user?.nickname ?? 'LibTV'); const list = await window.sbr.libtvWorkspaces() as { folders?: { id: string; name: string }[] }; setWorkspaces((list.folders ?? []).map(item => ({ id: String(item.id), name: item.name || `${t('Workspace')} ${item.id}` }))); const canvases = await window.sbr.libtvCanvases(workspace || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50); setMessage(t('LibTV signed in')) } catch (error) { setMessage(String(error)) } finally { setBusy(false) }
+    try { const info = await window.sbr.libtvAccount() as { activeAccount?: { accountName?: string }; user?: { nickname?: string } }; setAccount(info.activeAccount?.accountName ?? info.user?.nickname ?? 'LibTV'); const available = await window.sbr.libtvAccounts() as { accounts?: { accountId: string; accountName: string; isActive?: boolean }[] }; setAccounts(available.accounts ?? []); const list = await window.sbr.libtvWorkspaces() as { folders?: { id: string; name: string }[] }; setWorkspaces((list.folders ?? []).map(item => ({ id: String(item.id), name: item.name || `${t('Workspace')} ${item.id}` }))); const canvases = await window.sbr.libtvCanvases(workspace || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50); setMessage(t('LibTV signed in')) } catch (error) { setMessage(errorMessage(error)) } finally { setBusy(false) }
   }
   useEffect(() => { void refresh() }, [])
   useEffect(() => {
@@ -39,26 +39,28 @@ export function LibTVConnection(): JSX.Element {
     const timer = setInterval(() => { void window.sbr.libtvLoginStatus().then(status => {
       if (status?.state === 'done') { setWaiting(false); void refresh() }
       if (status?.state === 'failed') { setWaiting(false); setMessage(status.error ?? t('Login failed')) }
-    }).catch(error => { setWaiting(false); setMessage(String(error)) }) }, 1000)
+    }).catch(error => { setWaiting(false); setMessage(errorMessage(error)) }) }, 1000)
     return () => clearInterval(timer)
   }, [waiting])
   return <section className="libtv-settings"><h3>LibTV</h3>
     <p className="hint">{t('Sign in with your browser, then choose a canvas to link. No access key is required.')}</p>
-    <button className="btn" disabled={waiting} onClick={async () => { try { await window.sbr.libtvLogin(); setWaiting(true); setMessage(t('Complete login in your browser')) } catch (error) { setMessage(String(error)) } }}>{t(waiting ? 'Waiting for browser login…' : 'Sign in to LibTV')}</button>
+    <button className="btn" disabled={waiting} onClick={async () => { try { await window.sbr.libtvLogin(); setWaiting(true); setMessage(t('Complete login in your browser')) } catch (error) { setMessage(errorMessage(error)) } }}>{t(waiting ? 'Waiting for browser login…' : 'Sign in to LibTV')}</button>
     <button className="btn" disabled={busy} onClick={() => void refresh()}>{t('Refresh')}</button>
     {account && <p>{t('Account')}: {account}</p>}
-    <label className="field">{t('Workspace')}<select value={workspace} onChange={async event => { const value = event.target.value; setWorkspace(value); setProject(''); try { const canvases = await window.sbr.libtvCanvases(value || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50) } catch (error) { setMessage(String(error)) } }}><option value="">{t('All workspaces')}</option>{workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    {accounts.length > 1 && <label className="field">{t('Personal account or team')}<select disabled={busy} value={String(accounts.find(item => item.isActive)?.accountId ?? '')} onChange={async event => { setBusy(true); try { await window.sbr.libtvUseAccount(event.target.value); setWorkspace(''); setProject(''); await refresh(); setMessage(t('Account changed. Select and link a canvas in this account.')) } catch (error) { setMessage(errorMessage(error)) } finally { setBusy(false) } }}>{accounts.map(item => <option key={item.accountId} value={item.accountId}>{item.accountName}</option>)}</select></label>}
+
+    <label className="field">{t('Workspace')}<select value={workspace} onChange={async event => { const value = event.target.value; setWorkspace(value); setProject(''); try { const canvases = await window.sbr.libtvCanvases(value || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50) } catch (error) { setMessage(errorMessage(error)) } }}><option value="">{t('All workspaces')}</option>{workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     <label className="field">{t('Target canvas')}<select value={project} onChange={event => setProject(event.target.value)}><option value="">{t('Choose a canvas')}</option>{canvases.map(canvas => <option key={canvas.id} value={canvas.id}>{canvas.name}</option>)}</select></label>
     {moreCanvases && <button className="text-button" onClick={async () => {
-      try { const next = await window.sbr.libtvCanvases(workspace || undefined, canvasPage + 1); setCanvases(previous => [...previous, ...next]); setCanvasPage(canvasPage + 1); setMoreCanvases(next.length === 50) } catch (error) { setMessage(String(error)) }
+      try { const next = await window.sbr.libtvCanvases(workspace || undefined, canvasPage + 1); setCanvases(previous => [...previous, ...next]); setCanvasPage(canvasPage + 1); setMoreCanvases(next.length === 50) } catch (error) { setMessage(errorMessage(error)) }
     }}>{t('Load more')}</button>}
     <button className="btn primary" disabled={busy || !project} onClick={async () => {
       setBusy(true)
-      try { await window.sbr.libtvVerify(project); useStore.getState().mutate('connect LibTV', doc => { doc.settings.libtv = { projectId: project, name: canvases.find(canvas => canvas.id === project)?.name ?? project } }); setMessage(t('Canvas linked')) } catch (error) { setMessage(String(error)) } finally { setBusy(false) }
+      try { await window.sbr.libtvVerify(project); useStore.getState().mutate('connect LibTV', doc => { doc.settings.libtv = { projectId: project, name: canvases.find(canvas => canvas.id === project)?.name ?? project } }); setMessage(t('Canvas linked')) } catch (error) { setMessage(errorMessage(error)) } finally { setBusy(false) }
     }}>{t('Link canvas')}</button>
     {target && <button className="text-button" onClick={() => useStore.getState().mutate('disconnect LibTV', doc => { delete doc.settings.libtv })}>{t('Disconnect')}</button>}
     <details><summary>{t('Login and linking guide')}</summary><ol><li>{t('Click Sign in to LibTV and finish signing in on the official website.')}</li><li>{t('Return here, refresh the canvas list, then select and link your target canvas.')}</li><li>{t('Credentials stay on this computer and are not included in project files.')}</li></ol></details>
-    {target && <LibTVStudio />}
+    {target && <button className="btn" onClick={() => useStore.getState().setWorkspace('libtv')}>{t('Open LibTV studio')}</button>}
     <p role="status">{message}</p>
   </section>
 }
@@ -103,7 +105,7 @@ export function LibTVUploads(): JSX.Element | null {
   useEffect(() => {
     if(!job || job.state !== 'running') return
     let active = true
-    const timer = window.setInterval(() => { void window.sbr.libtvStatus(job.id).then((next) => { if(active && next) setJob(next) }).catch((e) => setError(String(e))) },500)
+    const timer = window.setInterval(() => { void window.sbr.libtvStatus(job.id).then((next) => { if(active && next) { setJob(next); if(next.state === 'done') window.dispatchEvent(new Event('libtv-changed')) } }).catch((e) => setError(String(e))) },500)
     return () => { active=false; clearInterval(timer) }
   },[job?.id,job?.state])
   const start = async (retry: boolean): Promise<void> => {

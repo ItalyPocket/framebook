@@ -16,6 +16,7 @@ export interface MediaItem {
   workingFile?: string
   externalPath?: string
   clip?: { sourceMediaId: string; inS: number; outS: number }
+  libtvSource?: { projectId: string; node: string; taskId: string }
   capturedFrameId?: string
   folderId?: string
   /** Original filename, for display. */
@@ -124,7 +125,7 @@ export interface Project {
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 8
+export const PROJECT_VERSION = 9
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2

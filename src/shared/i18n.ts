@@ -16,3 +16,8 @@ export function t(key: string, values: Record<string, string | number> = {}, loc
   const message = locale === 'zh-CN' ? (chinese as Record<string, string>)[key] ?? key : key
   return message.replace(/\{(\w+)\}/g, (match, name: string) => String(values[name] ?? match))
 }
+
+export function errorMessage(error: unknown): string {
+  const message = String(error).replace(/^Error invoking remote method '[^']+': /, '').replace(/^Error: /, '')
+  return t(message)
+}

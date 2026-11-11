@@ -9,7 +9,7 @@
 > **最新版本：2.5.1 · Apple Silicon Mac。** [下载 DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1)。下方截图摄于 2.5.0。
 
 
-> 当前源码：**2.7.0-beta.7**。新增视频片段、项目导出默认设置、内部数据备份与 LibTV CLI 登录。参见[使用及存储说明](docs/VIDEO-LIBTV.md)。
+> 当前源码：**2.8.0-beta.1**。新增视频片段、项目导出默认设置、内部数据备份与 LibTV CLI 登录。参见[使用及存储说明](docs/VIDEO-LIBTV.md)。
 
 ## 从参考画面到拍摄计划
 
