@@ -1,6 +1,8 @@
+import { projectData } from './projectStorage'
+import { parseProject, defaultProjectExports } from '../shared/schema'
 import { app, dialog, ipcMain, shell } from 'electron'
 import { mkdir, mkdtemp, readFile, readdir, rm, cp } from 'fs/promises'
-import { join, basename, dirname } from 'path'
+import { join, basename, dirname, isAbsolute } from 'path'
 import { randomUUID } from 'crypto'
 import { exportStoryboard, exportNumbered } from './storyboard'
 import { getSettings } from './workspace'
@@ -10,14 +12,14 @@ import type { ExportPreview } from '../shared/workspace'
 
 const previews = new Map<
   string,
-  { root: string; path: string; category: 'storyboard' | 'frames' }
+  { root: string; path: string; category: 'storyboard' | 'frames'; projectFolder?: string }
 >()
 export function setupPreviews(): void {
   ipcMain.handle(
     'preview:prepare',
     async (
       _event,
-      request: { storyboard?: StoryboardExportInput; frames?: ExportInput; format?: 'png' | 'jpg' }
+      request: { projectFolder?: string; storyboard?: StoryboardExportInput; frames?: ExportInput; format?: 'png' | 'jpg' }
     ) => {
       const root = await mkdtemp(join(app.getPath('temp'), 'framebook-preview-'))
       try {
@@ -51,7 +53,7 @@ export function setupPreviews(): void {
             }))
           )
         }
-        previews.set(id, { root, path: result.path, category })
+        previews.set(id, { root, path: result.path, category, projectFolder: request.projectFolder })
         return preview
       } catch (error) {
         await rm(root, { recursive: true, force: true })
@@ -71,7 +73,15 @@ export function setupPreviews(): void {
     if (!preview) throw new Error('Preview expired')
     const settings = await getSettings()
     let root = preview.category === 'storyboard' ? settings.storyboardRoot : settings.framesRoot
-    if (preview.category === 'storyboard' ? settings.askStoryboard : settings.askFrames) {
+    let ask = preview.category === 'storyboard' ? settings.askStoryboard : settings.askFrames
+    if (preview.projectFolder) {
+      const doc = parseProject(await projectData(preview.projectFolder)).doc
+      if (!doc) throw new Error('Invalid project')
+      const config = (doc.settings.exports ?? defaultProjectExports())[preview.category]
+      root = isAbsolute(config.directory) ? config.directory : join(doc.settings.archiveFolder ?? preview.projectFolder, config.directory)
+      ask = config.ask
+    }
+    if (ask) {
       const result = await dialog.showOpenDialog({
         defaultPath: root,
         properties: ['openDirectory', 'createDirectory']

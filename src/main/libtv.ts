@@ -1,88 +1,79 @@
+import { clipUpload } from './clips'
+import { projectData } from './projectStorage'
+import type { Project } from '../shared/types'
 import { renderDisplayStill } from './export'
 import type { ExportFrameInput } from '../shared/exports'
-import { app, ipcMain, safeStorage } from 'electron'
-import { readFile, writeFile, mkdir, stat } from 'fs/promises'
+import { ipcMain } from 'electron'
+import { stat } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import type { ChildProcess } from 'child_process'
 import type { LibTVFile, LibTVJob } from '../shared/libtv'
+import { libtvCommand, libtvObjects } from './libtvCli'
 
-const jobs = new Map<string, { job: LibTVJob; abort: AbortController }>()
-async function keys(): Promise<Record<string,string>> {
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('System encrypted storage is unavailable.')
-  const stored=await readFile(join(app.getPath('userData'),'libtv.key')).catch(() => null)
-  if(!stored) return {}
-  const value=safeStorage.decryptString(stored)
-  try { return JSON.parse(value) as Record<string,string> } catch { return {} }
-}
-async function key(projectId?: string): Promise<string> {
-  const saved=await keys()
-  const secret=projectId ? saved[projectId] : Object.values(saved)[0]
-  if(!secret) throw new Error('Connect the target LibTV project first.')
-  return secret
-}
-async function session(secret: string): Promise<string> {
-  const response = await fetch('https://im.liblib.tv/openapi/session', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(30000) })
-  if (!response.ok) throw new Error(`LibTV HTTP ${response.status}`)
-  const result = await response.json() as { data?: { projectUuid?: string } }
-  if (!result.data?.projectUuid) throw new Error('LibTV did not return a project.')
-  return result.data.projectUuid
-}
+const jobs = new Map<string, { job: LibTVJob; child?: ChildProcess }>()
+let login: { state: 'waiting' | 'done' | 'failed'; error?: string } | null = null
 export function setupLibTV(resolvePath: (folder: string, path: string) => Promise<string>): void {
-  ipcMain.handle('libtv:render', async (_e, folder: string, input: ExportFrameInput, index: number) => {
-    if ([...jobs.values()].some((task) => task.job.state === 'running')) throw new Error('An upload is already running.')
-    const sourcePng = await resolvePath(folder, input.sourcePng)
-    return renderDisplayStill({...input,sourcePng},join(folder,'.frames','libtv'),index)
+  ipcMain.handle('libtv:login', () => {
+    if (login?.state === 'waiting') return login
+    login = { state: 'waiting' }
+    void libtvCommand(['login', 'web', '--open']).then(() => { login = { state: 'done' } }).catch(error => { login = { state: 'failed', error: String(error) } })
+    return login
   })
-  ipcMain.handle('libtv:configure', async (_e, secret: string) => {
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('System encrypted storage is unavailable.')
-    if (!secret.trim()) throw new Error('Access key is required.')
-    const projectId = await session(secret.trim())
-    await mkdir(app.getPath('userData'), { recursive: true })
-    await writeFile(join(app.getPath('userData'), 'libtv.key'), safeStorage.encryptString(JSON.stringify({...await keys(),[projectId]:secret.trim()})), { mode: 0o600 })
+  ipcMain.handle('libtv:loginStatus', () => login)
+  ipcMain.handle('libtv:account', () => libtvCommand(['account', 'info']))
+  ipcMain.handle('libtv:workspaces', () => libtvCommand(['workspace', 'list']))
+  ipcMain.handle('libtv:canvases', async (_event, workspace?: string, page = 1) => {
+    const result = await libtvCommand(['project', 'list', '-s', '50', '-p', String(Math.max(1, Math.floor(page))), ...(workspace ? ['-w', workspace] : [])])
+    return libtvObjects(result).filter(item => typeof item.uuid === 'string' || typeof item.projectUuid === 'string').map(item => ({ id: String(item.uuid ?? item.projectUuid), name: String(item.name ?? item.title ?? item.projectName ?? item.uuid ?? item.projectUuid) }))
+  })
+  ipcMain.handle('libtv:models', (_event, type: string) => {
+    if (!['image', 'video'].includes(type)) throw new Error('Invalid model type')
+    return libtvCommand(['model', 'search', '-t', type])
+  })
+  ipcMain.handle('libtv:schema', (_event, model: string) => libtvCommand(['model', model]))
+  ipcMain.handle('libtv:render', async (_event, folder: string, input: ExportFrameInput, index: number) => renderDisplayStill({ ...input, sourcePng: await resolvePath(folder, input.sourcePng) }, join(folder, '.frames', 'libtv'), index))
+  ipcMain.handle('libtv:configure', () => { throw new Error('请使用浏览器登录，不再需要 Key') })
+  ipcMain.handle('libtv:targets', async () => libtvObjects(await libtvCommand(['project', 'list', '-s', '100'])).map(item => item.uuid ?? item.projectUuid).filter((id): id is string => typeof id === 'string'))
+  ipcMain.handle('libtv:verify', async (_event, projectId?: string) => {
+    if (!projectId || !/^[a-zA-Z0-9_-]+$/.test(projectId)) throw new Error('请选择目标画布')
+    await libtvCommand(['project', projectId])
     return { projectId }
   })
-  ipcMain.handle('libtv:targets', async () => Object.keys(await keys()))
-  ipcMain.handle('libtv:verify', async (_e, projectId?: string) => ({ projectId: await session(await key(projectId)) }))
-  ipcMain.handle('libtv:cancel', (_e, id: string) => { const task = jobs.get(id); if(task) { task.job.state = 'cancelled'; task.abort.abort() } })
-  ipcMain.handle('libtv:status', (_e, id: string) => jobs.get(id)?.job ?? null)
-  ipcMain.handle('libtv:inspect', async (_e, folder: string, files: LibTVFile[]) => Promise.all(files.map(async (file) => ({ ...file, bytes: (await stat(await resolvePath(folder, file.path))).size }))))
-  ipcMain.handle('libtv:upload', async (_e, folder: string, projectId: string, files: LibTVFile[]) => {
-    if ([...jobs.values()].some((task) => task.job.state === 'running')) throw new Error('An upload is already running.')
-    if (!files.length || files.length > 500) throw new Error('Invalid upload selection.')
-    const secret = await key(projectId)
-    if (await session(secret) !== projectId) throw new Error('The access key belongs to a different LibTV project. Reconnect using that project’s key.')
-    const resolved = await Promise.all(files.map(async (file) => {
-      const path = await resolvePath(folder, file.path)
-      const info = await stat(path)
-      if (!info.isFile() || info.size >= 200000000) throw new Error('Each file must be smaller than 200 MB.')
-      const ext = path.split('.').pop()?.toLowerCase() ?? ''
-      const mime = ({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',heif:'image/heif',heic:'image/heic',gif:'image/gif',mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'} as Record<string,string>)[ext]
-      if (!mime) throw new Error('Unsupported upload format.')
-      return { ...file, path, mime }
-    }))
-    for (const [id, task] of jobs) if(task.job.state !== 'running') jobs.delete(id)
-    const job: LibTVJob = { id: randomUUID(), state:'running',items:files.map((file) => ({ id:file.id,name:file.name,state:'pending' })) }
-    const abort = new AbortController()
-    jobs.set(job.id, {job,abort})
+  ipcMain.handle('libtv:cancel', (_event, id: string) => {
+    const task = jobs.get(id)
+    if (task) { task.job.state = 'cancelled'; task.child?.kill('SIGTERM') }
+  })
+  ipcMain.handle('libtv:status', (_event, id: string) => jobs.get(id)?.job ?? null)
+  ipcMain.handle('libtv:inspect', async (_event, folder: string, files: LibTVFile[]) => Promise.all(files.map(async file => ({ ...file, bytes: (await stat(await resolvePath(folder, file.path))).size }))))
+  ipcMain.handle('libtv:upload', async (_event, folder: string, projectId: string, files: LibTVFile[]) => {
+    if (!files.length || files.length > 500 || !/^[a-zA-Z0-9_-]+$/.test(projectId)) throw new Error('Invalid upload selection')
+    const sources = await Promise.all(files.map(file => resolvePath(folder, file.path)))
+    const job: LibTVJob = { id: randomUUID(), state: 'running', items: files.map(file => ({ id: file.id, name: file.name, state: 'pending' })) }
+    const task: { job: LibTVJob; child?: ChildProcess } = { job }
+    jobs.set(job.id, task)
     void (async () => {
-      for (const [index,file] of resolved.entries()) {
-        if(abort.signal.aborted) break
+      for (const [index, file] of files.entries()) {
+        if (job.state === 'cancelled') break
         const item = job.items[index]!
         item.state = 'uploading'
         try {
-          if(await session(secret) !== projectId) throw new Error('LibTV target project changed. Reconnect before retrying.')
-          const form = new FormData()
-          form.append('accessKey',secret)
-          form.append('file',new Blob([new Uint8Array(await readFile(file.path))], {type:file.mime}),file.name)
-          const response = await fetch('https://im.liblib.tv/openapi/upload',{method:'POST',headers:{Authorization:`Bearer ${secret}`},body:form,signal:AbortSignal.any([abort.signal,AbortSignal.timeout(120000)])})
-          if(!response.ok) throw new Error(`LibTV HTTP ${response.status}`)
-          const result = await response.json() as {data?:{url?:string}}
-          const url = result.data?.url
-          if(!url || !url.startsWith('https://libtv-res.liblib.art/') || !url.includes(`/${projectId}/`)) throw new Error('Could not verify uploaded resource project.')
-          item.url = url; item.state = 'uploaded'
-        } catch(error) { item.state = 'failed'; item.error = abort.signal.aborted ? 'Cancelled' : error instanceof Error ? error.message : 'Upload failed' }
+          const project = JSON.parse(await projectData(folder)) as Project
+          const clip = project.media.find(media => media.id === file.id)?.clip
+          const rendered = clip ? await clipUpload(folder, file.id, resolvePath) : null
+          if (jobs.get(job.id)?.job.state === 'cancelled') { await rendered?.release(); break }
+          let result: unknown
+          try { result = await libtvCommand(['upload', file.name, '-p', projectId, '-f', rendered?.path ?? sources[index]!, '--x', String((index % 4) * 480), '--y', String(Math.floor(index / 4) * 360)], child => { task.child = child }) } finally { await rendered?.release() }
+          const node = libtvObjects(result).find(object => typeof object.nodeKey === 'string')
+          if (!node) throw new Error('LibTV 未返回画布节点标识')
+          const verified = await libtvCommand(['node', String(node.nodeKey), '-p', projectId])
+          if (!libtvObjects(verified).some(object => object.nodeKey === node.nodeKey || object.id === node.nodeKey)) throw new Error('无法确认目标画布中的资源节点，请先在画布检查，避免重复上传')
+          item.url = `https://www.liblib.tv/canvas?projectId=${encodeURIComponent(projectId)}`
+          item.state = 'uploaded'
+        } catch (error) { item.state = 'failed'; item.error = String(error) }
       }
-      if(job.state !== 'cancelled') job.state = 'done'
+      delete task.child
+      if (job.state !== 'cancelled') job.state = 'done'
     })()
     return job.id
   })

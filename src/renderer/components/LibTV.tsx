@@ -1,3 +1,4 @@
+import { LibTVStudio } from './LibTVStudio'
 import { StillImage } from '../panels/StillImage'
 import { useMediaUrl } from '../lib/useMediaUrl'
 import type { MediaItem, Frame } from '@shared/types'
@@ -17,23 +18,49 @@ function UploadThumbnail({ file }: {file:LibTVFile}): JSX.Element {
 function MediaThumbnail({media}:{media:MediaItem}):JSX.Element { const url=useMediaUrl(media);return media.kind==='video'?<video muted src={url ?? ''} />:<img src={url ?? ''} alt={media.name} /> }
 
 export function LibTVConnection(): JSX.Element {
-  const target = useStore((s) => s.doc?.settings.libtv)
-  const [secret, setSecret] = useState('')
+  const target = useStore(state => state.doc?.settings.libtv)
+  const [account, setAccount] = useState('')
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
+  const [workspace, setWorkspace] = useState('')
+  const [canvasPage, setCanvasPage] = useState(1)
+  const [moreCanvases, setMoreCanvases] = useState(false)
+  const [canvases, setCanvases] = useState<{ id: string; name: string }[]>([])
   const [project, setProject] = useState(target?.projectId ?? '')
-  const [name, setName] = useState(target?.name ?? 'LibTV')
   const [message, setMessage] = useState('')
+  const [waiting, setWaiting] = useState(false)
   const [busy, setBusy] = useState(false)
-  const connect = async (): Promise<void> => {
-    setBusy(true); setMessage('')
-    try {
-      const result = secret ? await window.sbr.libtvConfigure(secret) : await window.sbr.libtvVerify(project.includes('://') ? new URL(project).searchParams.get('projectId') ?? undefined : project || undefined)
-      const projectId = project.includes('://') ? new URL(project).searchParams.get('projectId') : project.trim()
-      if(projectId && projectId !== result.projectId) throw new Error(t('The access key belongs to a different LibTV project.'))
-      useStore.getState().mutate('connect LibTV', (doc) => { doc.settings.libtv = {projectId:result.projectId,name:name.trim() || 'LibTV'} })
-      setProject(result.projectId); setSecret(''); setMessage(t('Connection verified. Canvas visibility requires checking in LibTV.'))
-    } catch(error) { setMessage(String(error)) } finally { setBusy(false) }
+  const refresh = async (): Promise<void> => {
+    setBusy(true)
+    try { const info = await window.sbr.libtvAccount() as { activeAccount?: { accountName?: string }; user?: { nickname?: string } }; setAccount(info.activeAccount?.accountName ?? info.user?.nickname ?? 'LibTV'); const list = await window.sbr.libtvWorkspaces() as { folders?: { id: string; name: string }[] }; setWorkspaces((list.folders ?? []).map(item => ({ id: String(item.id), name: item.name || `${t('Workspace')} ${item.id}` }))); const canvases = await window.sbr.libtvCanvases(workspace || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50); setMessage(t('LibTV signed in')) } catch (error) { setMessage(String(error)) } finally { setBusy(false) }
   }
-  return <section className="libtv-settings"><h3>LibTV</h3><details className="libtv-guide"><summary>{t('How to get the project ID and access key')}</summary><ol><li>{t('Open LibTV, sign in, and open the project you want to connect.')}</li><li>{t('Copy the canvas URL. The value after projectId= is the project ID. You can paste the full URL here.')}<br /><code>https://www.liblib.tv/canvas?projectId=…</code></li><li>{t('Look for LibTV Skills or Access Key in the project or account settings. Copy the access key provided by LibTV. If the entry is unavailable, consult the official guide or account support.')}</li><li>{t('Paste the key into Access key and click Verify and link project. Leave the project ID empty to read the project bound to the key automatically.')}</li><li>{t('If the returned project does not match, obtain the correct project key. Do not share the key or include it in project files.')}</li></ol><button className="btn" onClick={() => void window.sbr.openExternal('https://www.liblib.tv/')}>{t('Open LibTV')}</button> <button className="btn" onClick={() => void window.sbr.openExternal('https://github.com/libtv-labs/libtv-skills')}>{t('Official connection guide')}</button><p className="hint">{t('LibTV may change its access-key entry or API availability. A resource URL does not confirm that it is visible on the canvas.')}</p></details><label className="field">{t('Project name')}<input value={name} onChange={(e) => setName(e.target.value)} /></label><label className="field">{t('LibTV project URL or ID')}<input value={project} onChange={(e) => setProject(e.target.value)} /></label><label className="field">{t('Access key')}<input type="password" autoComplete="off" value={secret} placeholder={t('Leave empty to use saved key')} onChange={(e) => setSecret(e.target.value)} /></label><p className="hint">{t('Use the access key bound to the target project. No generation requests are sent.')}</p><button className="btn" disabled={busy} onClick={() => void connect()}>{t(busy ? 'Connecting…' : 'Verify and link project')}</button>{target && <button className="text-button" onClick={() => useStore.getState().mutate('disconnect LibTV',(doc) => { delete doc.settings.libtv })}>{t('Disconnect')}</button>}<p role="status">{message}</p></section>
+  useEffect(() => { void refresh() }, [])
+  useEffect(() => {
+    if (!waiting) return
+    const timer = setInterval(() => { void window.sbr.libtvLoginStatus().then(status => {
+      if (status?.state === 'done') { setWaiting(false); void refresh() }
+      if (status?.state === 'failed') { setWaiting(false); setMessage(status.error ?? t('Login failed')) }
+    }).catch(error => { setWaiting(false); setMessage(String(error)) }) }, 1000)
+    return () => clearInterval(timer)
+  }, [waiting])
+  return <section className="libtv-settings"><h3>LibTV</h3>
+    <p className="hint">{t('Sign in with your browser, then choose a canvas to link. No access key is required.')}</p>
+    <button className="btn" disabled={waiting} onClick={async () => { try { await window.sbr.libtvLogin(); setWaiting(true); setMessage(t('Complete login in your browser')) } catch (error) { setMessage(String(error)) } }}>{t(waiting ? 'Waiting for browser login…' : 'Sign in to LibTV')}</button>
+    <button className="btn" disabled={busy} onClick={() => void refresh()}>{t('Refresh')}</button>
+    {account && <p>{t('Account')}: {account}</p>}
+    <label className="field">{t('Workspace')}<select value={workspace} onChange={async event => { const value = event.target.value; setWorkspace(value); setProject(''); try { const canvases = await window.sbr.libtvCanvases(value || undefined); setCanvases(canvases); setCanvasPage(1); setMoreCanvases(canvases.length === 50) } catch (error) { setMessage(String(error)) } }}><option value="">{t('All workspaces')}</option>{workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    <label className="field">{t('Target canvas')}<select value={project} onChange={event => setProject(event.target.value)}><option value="">{t('Choose a canvas')}</option>{canvases.map(canvas => <option key={canvas.id} value={canvas.id}>{canvas.name}</option>)}</select></label>
+    {moreCanvases && <button className="text-button" onClick={async () => {
+      try { const next = await window.sbr.libtvCanvases(workspace || undefined, canvasPage + 1); setCanvases(previous => [...previous, ...next]); setCanvasPage(canvasPage + 1); setMoreCanvases(next.length === 50) } catch (error) { setMessage(String(error)) }
+    }}>{t('Load more')}</button>}
+    <button className="btn primary" disabled={busy || !project} onClick={async () => {
+      setBusy(true)
+      try { await window.sbr.libtvVerify(project); useStore.getState().mutate('connect LibTV', doc => { doc.settings.libtv = { projectId: project, name: canvases.find(canvas => canvas.id === project)?.name ?? project } }); setMessage(t('Canvas linked')) } catch (error) { setMessage(String(error)) } finally { setBusy(false) }
+    }}>{t('Link canvas')}</button>
+    {target && <button className="text-button" onClick={() => useStore.getState().mutate('disconnect LibTV', doc => { delete doc.settings.libtv })}>{t('Disconnect')}</button>}
+    <details><summary>{t('Login and linking guide')}</summary><ol><li>{t('Click Sign in to LibTV and finish signing in on the official website.')}</li><li>{t('Return here, refresh the canvas list, then select and link your target canvas.')}</li><li>{t('Credentials stay on this computer and are not included in project files.')}</li></ol></details>
+    {target && <LibTVStudio />}
+    <p role="status">{message}</p>
+  </section>
 }
 
 export function LibTVUploads(): JSX.Element | null {
@@ -94,7 +121,7 @@ export function LibTVUploads(): JSX.Element | null {
     {!target ? <LibTVConnection /> : <>
       <p>{t('Target project')}: {target.name}</p>
       {ask ? <label className="field">{t('Choose target project')}<select value={targetId} onChange={(e) => { setTargetId(e.target.value); setConfirmed(false) }}>{[...new Set([targetId,...targets])].filter(Boolean).map((id) => <option key={id} value={id}>{id===target.projectId?target.name:id}</option>)}</select></label> : <code>{target.projectId}</code>}
-      <p className="hint">{t('Uploads are stored in the linked project. Canvas visibility is not confirmed by the public API. No generation requests are sent.')}</p>
+      <p className="hint">{t('Uploads create resource nodes in the linked canvas. Uploading does not trigger generation.')}</p>
       <div className="libtv-file-list">{files.map((file) => <div key={file.id}><UploadThumbnail file={file} /><span>{file.name}</span><small>{((file.bytes ?? 0)/1024/1024).toFixed(2)} MB</small><span>{t([...completed,...(job?.items ?? [])].find((i) => i.id === file.id)?.state ?? 'pending')}</span><small>{[...completed,...(job?.items ?? [])].find((i) => i.id === file.id)?.error}</small></div>)}</div>
       <label className="setting-check"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />{t('Upload these files to this LibTV project')}</label>
       <div className="modal-actions"><button className="btn primary" disabled={busy || !files.length || !confirmed || !targetId || !!job} onClick={() => void start(false)}>{t('Upload')}</button>{job?.state === 'running' && <button className="btn" onClick={() => void window.sbr.libtvCancel(job.id)}>{t('Cancel')}</button>}{job && job.state !== 'running' && job.items.some((i) => i.state !== 'uploaded') && <button className="btn" disabled={busy} onClick={() => void start(true)}>{t('Retry failed files')}</button>}<button className="btn" onClick={() => void window.sbr.openExternal(`https://www.liblib.tv/canvas?projectId=${encodeURIComponent(targetId)}`)}>{t('Open canvas')}</button>{job?.items.some((i) => i.url) && <button className="btn" onClick={() => void navigator.clipboard.writeText([...completed,...job.items].filter((i) => i.url).map((i) => i.url).join('\n'))}>{t('Copy resource links')}</button>}</div>

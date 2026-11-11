@@ -123,7 +123,7 @@ export function StoryboardEditor(): JSX.Element | null {
         }
         shots.push({ ...shot, rendered: [], imageRoles: [], renderedByColumn, rolesByColumn })
       }
-      const result = await window.sbr.preparePreview({
+      const result = await window.sbr.preparePreview({ projectFolder: folder ?? undefined,
         storyboard: {
           projectName: doc.name,
           title: board.title,

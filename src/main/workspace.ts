@@ -1,3 +1,4 @@
+import { atomicJson, internalProjectRoot, primaryFolder, projectData, savePrimary, syncArchive, moveArchive } from './projectStorage'
 import { app, dialog, ipcMain } from 'electron'
 import {
   mkdir,
@@ -55,13 +56,15 @@ export async function getSettings(): Promise<AppSettings> {
   settingsCache = {
     ...defaults,
     ...stored,
+    projectRoot: join(app.getPath('userData'), 'Projects'),
+    libraryRoots: [...new Set([...(Array.isArray(stored.libraryRoots) ? stored.libraryRoots : []), ...(typeof stored.projectRoot === 'string' ? [stored.projectRoot] : [])])],
     effectScheme: stored.effectScheme ?? 'workspace'
   }
   return settingsCache!
 }
 async function writeSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
   const previous = await getSettings()
-  const next = { ...previous, ...patch }
+  const next = { ...previous, ...patch, projectRoot: internalProjectRoot() }
   next.autosaveSeconds = Math.max(10, Number(next.autosaveSeconds) || 60)
   next.backupLimit = Math.max(1, Math.floor(Number(next.backupLimit) || 5))
   next.libraryRoots = [
@@ -89,45 +92,27 @@ export async function registerProject(folder: string): Promise<void> {
   })
 }
 export async function saveProject(folder: string, json: string): Promise<boolean> {
-  const task = (writes.get(folder) ?? Promise.resolve())
-    .catch(() => {})
-    .then(async () => {
-      await mkdir(folder, { recursive: true })
-      const target = join(folder, 'project.json')
-      const previous = await readFile(target, 'utf8').catch(() => null)
-      if (previous === json) return true
-      JSON.parse(json)
-      const backupDir = join(folder, '.autosave')
+  const task = (writes.get(folder) ?? Promise.resolve()).catch(() => {}).then(async () => {
+    const { primary, content, previous } = await savePrimary(folder, json)
+    const backupDir = join(primary, '.autosave')
+    if (previous !== content) {
       if (previous) {
         await mkdir(backupDir, { recursive: true })
-        await writeFile(
-          join(backupDir, `recovery-${Date.now()}-${Math.random().toString(36).slice(2)}.json`),
-          previous
-        )
+        await writeFile(join(backupDir, `recovery-${Date.now()}-${Math.random().toString(36).slice(2)}.json`), previous)
       }
-      const temporary = join(
-        folder,
-        `project.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`
-      )
-      await writeFile(temporary, json)
-      await rename(temporary, target)
+      await atomicJson(join(primary, 'project.json'), content)
       const limit = (await getSettings()).backupLimit
-      const backups = (await readdir(backupDir).catch(() => []))
-        .filter((file) => file.startsWith('recovery-'))
-        .sort()
-        .reverse()
+      const backups = (await readdir(backupDir).catch(() => [])).filter(file => file.startsWith('recovery-')).sort().reverse()
       for (const file of backups.slice(limit)) await rm(join(backupDir, file))
-      return true
-    })
+    }
+    await syncArchive(folder, primary, content)
+    return true
+  })
   writes.set(folder, task)
-  try {
-    return await task
-  } finally {
-    if (writes.get(folder) === task) writes.delete(folder)
-  }
+  try { return await task } finally { if (writes.get(folder) === task) writes.delete(folder) }
 }
 export async function createProject(name: string): Promise<string> {
-  const root = process.env.SBR_SMOKE_DIR ?? (await getSettings()).projectRoot
+  const root = process.env.SBR_SMOKE_DIR ?? join(app.getPath('documents'), '帧册', '项目')
   await mkdir(root, { recursive: true })
   const stem = safeName(name)
   let folder = join(root, `${stem}.sbref`)
@@ -146,19 +131,20 @@ export async function createProject(name: string): Promise<string> {
 export async function listProjects(): Promise<ProjectEntry[]> {
   const settings = await getSettings()
   const paths = new Set(settings.recentProjects)
-  for (const root of new Set([settings.projectRoot, ...settings.libraryRoots])) {
+  for (const root of new Set([internalProjectRoot(), settings.projectRoot, ...settings.libraryRoots])) {
     for (const entry of await readdir(root, { withFileTypes: true }).catch(() => []))
       if (entry.isDirectory() && entry.name.endsWith('.sbref')) paths.add(join(root, entry.name))
   }
   const entries = await Promise.all(
     [...paths].map(async (folder) => {
       try {
-        const doc = JSON.parse(await readFile(join(folder, 'project.json'), 'utf8')) as Project
+        const doc = JSON.parse(await projectData(folder)) as Project
         const cover = doc.media.find((media) => media.kind === 'image')
         const source = cover?.workingFile ?? (cover?.externalPath ? undefined : cover?.sourceFile)
-        const coverBytes = source ? await readFile(join(folder, source)).catch(() => null) : null
+        const archive = doc.settings.archiveFolder ?? folder
+        const coverBytes = source ? await readFile(join(archive, source)).catch(() => null) : null
         return {
-          folder,
+          folder: doc.settings.archiveFolder ?? folder,
           name: doc.name,
           modified: (await stat(join(folder, 'project.json'))).mtimeMs,
           shots: doc.storyboard?.shots.length ?? 0,
@@ -171,7 +157,9 @@ export async function listProjects(): Promise<ProjectEntry[]> {
       }
     })
   )
-  return entries
+  const unique = new Map<string, NonNullable<(typeof entries)[number]>>()
+  for (const entry of entries) if (entry && !unique.has(entry.folder)) unique.set(entry.folder, entry)
+  return [...unique.values()]
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
     .sort((a, b) => b.modified - a.modified)
 }
@@ -181,6 +169,18 @@ export function setupWorkspace(): void {
   ipcMain.handle('settings:directory', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
     return result.canceled ? null : result.filePaths[0]
+  })
+  ipcMain.handle('project:moveArchive', async (_event, folder: string, parent: string, json: string) => {
+    await saveProject(folder, json)
+    const target = join(parent, basename(folder))
+    const result = await moveArchive(folder, target, json)
+    await registerProject(result)
+    return result
+  })
+  ipcMain.handle('project:resolveSync', async (_event, folder: string) => {
+    const primary = await primaryFolder(folder)
+    const content = await projectData(folder)
+    await syncArchive(folder, primary, content, true)
   })
   ipcMain.handle('library:list', () => listProjects())
   ipcMain.handle('library:create', (_e, name: string) => createProject(name))
@@ -211,7 +211,7 @@ export function setupWorkspace(): void {
     return target
   })
   ipcMain.handle('library:backups', async (_e, folder: string) => {
-    const dir = join(folder, '.autosave')
+    const dir = join(await primaryFolder(folder), '.autosave')
     return Promise.all(
       (await readdir(dir).catch(() => []))
         .filter((file) => /^recovery-.*\.json$/.test(file))
@@ -220,9 +220,9 @@ export function setupWorkspace(): void {
         .map(async (file) => ({ file, modified: (await stat(join(dir, file))).mtimeMs }))
     )
   })
-  ipcMain.handle('library:readBackup', (_e, folder: string, file: string) => {
+  ipcMain.handle('library:readBackup', async (_e, folder: string, file: string) => {
     if (!/^recovery-[a-zA-Z0-9.-]+\.json$/.test(file)) throw new Error('Invalid backup')
-    return readFile(join(folder, '.autosave', file), 'utf8')
+    return readFile(join(await primaryFolder(folder), '.autosave', file), 'utf8')
   })
   ipcMain.handle('library:share', async (_e, folder: string, json: string) => {
     const doc = JSON.parse(json) as Project

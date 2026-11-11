@@ -2,6 +2,7 @@ import { CONVERSION_FORMATS, CONVERSION_FORMAT_LABELS, type ConversionFormat } f
 import { LibTVConnection } from './LibTV'
 import { SearchControl } from './SearchControl'
 import { useEffect, useState } from 'react'
+import { ProjectExports } from './ProjectExports'
 import { parseProject } from '@shared/schema'
 import { t } from '@shared/i18n'
 import type { AppSettings, ProjectEntry, RecoveryEntry } from '@shared/workspace'
@@ -14,6 +15,8 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
   const doc = useStore((state) => state.doc)
   const folder = useStore((state) => state.projectFolder)
   const [recovering, setRecovering] = useState(false)
+  const [syncError, setSyncError] = useState('')
+  useEffect(() => window.sbr.onProjectSync(value => { if (value.folder === folder) setSyncError(value.state === 'error' ? value.error ?? '' : '') }), [folder])
   const value = useSettings((state) => state.value)
   const update = useSettings((state) => state.update)
   const [error, setError] = useState('')
@@ -120,7 +123,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
               {check('simplifyAnimations', 'Simplify animations')}
               <p className="hint">{t('Use short fades instead of geometric motion.')}</p>
               <h3>{t('Projects and saving')}</h3>
-              {path('projectRoot', 'Default project location')}
+              <label className="field">{t('Internal project data location')}<input readOnly value={value.projectRoot} /></label>
               {check('autosave', 'Enable autosave')}
               <label className="field">
                 {t('Autosave interval (seconds)')}
@@ -148,10 +151,7 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
             </section>
             <section>
               <h3>{t('Export settings')}</h3>
-              {path('storyboardRoot', 'Storyboard export location')}
-              {check('askStoryboard', 'Ask for storyboard export location each time')}
-              {path('framesRoot', 'Frame export location')}
-              {check('askFrames', 'Ask for frame export location each time')}
+              <p className="hint">{t('Storyboard, frame and video export defaults are configured separately for each project in Project settings.')}</p>
               <h3>{t('Jianying / CapCut conversion')}</h3>
               {path('draftRoot', 'Draft search location')}
               {path('conversionRoot', 'Conversion export location')}
@@ -171,6 +171,12 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
           (doc && folder ? (
             <section className="project-settings-content">
               <h3>{doc.name}</h3>
+              <ProjectExports />
+              <p className="hint">{t('Project data is saved internally. Media and exports live in the project folder; its data copy stays in sync.')}</p>
+              {syncError && <p role="alert">{syncError}</p>}
+              <button className="btn" onClick={() => {
+                if (window.confirm(t('Replace the external data copy with the internally saved project? Media files will be preserved.'))) void window.sbr.resolveSync(folder).catch(error => setError(String(error)))
+              }}>{t('Sync internal project to archive')}</button>
               <LibTVConnection />
               <p className="hint">
                 {t('Rename the project by clicking its name in the top left.')}
@@ -179,6 +185,16 @@ export function SettingsDialog({ onClose }: { onClose(): void }): JSX.Element {
                 {t('Project location')}
                 <div className="path-setting">
                   <input readOnly value={folder} />
+                  <button className="btn" onClick={async () => {
+                    const parent = await window.sbr.chooseDirectory()
+                    const json = currentProjectJson()
+                    if (!parent || !json) return
+                    try {
+                      const target = await window.sbr.moveArchive(folder, parent, json)
+                      useStore.setState({ projectFolder: target, stills: {} })
+                      useStore.getState().mutate('move project archive', project => { project.settings.archiveFolder = target })
+                    } catch (error) { setError(String(error)) }
+                  }}>{t('Move project folder')}</button>
                   <button className="btn" onClick={() => void window.sbr.showFolder(folder)}>
                     {t('Show in Finder')}
                   </button>

@@ -22,6 +22,7 @@ export interface DraftEntry {
 export interface ConversionIssue { feature: string; level: 'approximate' | 'unverified' | 'unsupported'; clips: string[] }
 export interface DraftClip {
   id: string; track: number; kind: string; materialId: string; path: string; name: string
+  enabled?: boolean; muted?: boolean
   start: number; duration: number; sourceStart: number | null; sourceDuration: number | null
   width: number; height: number; fps: number; materialDuration: number; text: string
   hasAudio: boolean; volume: number; speed: number; rotation: number; x: number; y: number; scaleX: number; scaleY: number; opacity: number

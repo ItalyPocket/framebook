@@ -51,13 +51,34 @@ export interface AnimaticOptions {
 }
 
 export interface SbrAPI {
+  libtvGenerate(input: import('../shared/libtvGeneration').LibTVGenerationInput): Promise<import('../shared/libtvGeneration').LibTVGenerationTask>
+  libtvTasks(): Promise<import('../shared/libtvGeneration').LibTVGenerationTask[]>
+  libtvDetach(id: string): Promise<void>
+  libtvDownload(id: string, folder: string, watermark: boolean): Promise<ImportedMedia[]>
+  moveArchive(folder: string, parent: string, json: string): Promise<string>
+  resolveSync(folder: string): Promise<void>
+  onProjectSync(cb: (value: { folder: string; state: string; error?: string }) => void): () => void
+  libtvLogin(): Promise<{ state: string; error?: string }>
+  libtvLoginStatus(): Promise<{ state: string; error?: string } | null>
+  libtvAccount(): Promise<unknown>
+  libtvWorkspaces(): Promise<unknown>
+  libtvCanvases(workspace?: string, page?: number): Promise<{ id: string; name: string }[]>
+  libtvModels(type: 'image' | 'video'): Promise<unknown>
+  libtvSchema(model: string): Promise<unknown>
+  clipsPrepare(folder: string, ids: string[], options?: import('../shared/clips').ClipExportOptions): Promise<import('../shared/clips').ClipExportJob>
+  clipsStatus(id: string): Promise<import('../shared/clips').ClipExportJob | null>
+  clipsRead(id: string, index: number): Promise<Uint8Array>
+  clipsCancel(id: string): Promise<void>
+  clipsConfirm(id: string): Promise<string | null>
+  conversionKeyStatus(): Promise<boolean>
+  conversionKeySave(value: string): Promise<void>
   conversionScan(custom?: boolean | string): Promise<DraftEntry[]>
-  conversionOpen(path?: string): Promise<ConversionSession | null>
+  conversionOpen(path?: string, cloud?: boolean): Promise<ConversionSession | null>
   conversionRelink(id: string, path: string): Promise<ConversionSession>
   conversionPreview(id: string, format: ConversionFormat): Promise<{ text: string; bytes: number }>
   conversionExport(id: string, format: ConversionFormat): Promise<string | null>
   conversionClose(id: string): Promise<void>
-  preparePreview(request: { storyboard?: StoryboardExportInput; frames?: ExportBoardInput; format?: 'png' | 'jpg' }): Promise<ExportPreview>
+  preparePreview(request: { projectFolder?: string; storyboard?: StoryboardExportInput; frames?: ExportBoardInput; format?: 'png' | 'jpg' }): Promise<ExportPreview>
   confirmPreview(id: string): Promise<string | null>
   cancelPreview(id: string): Promise<void>
   libtvRender(folder: string, input: ExportFrameInput, index: number): Promise<string>
@@ -132,8 +153,33 @@ export interface SbrAPI {
 }
 
 const api: SbrAPI = {
+  libtvGenerate: (input) => ipcRenderer.invoke('libtv:generate', input),
+  libtvTasks: () => ipcRenderer.invoke('libtv:tasks'),
+  libtvDetach: (id) => ipcRenderer.invoke('libtv:detach', id),
+  libtvDownload: (id, folder, watermark) => ipcRenderer.invoke('libtv:download', id, folder, watermark),
+  moveArchive: (folder, parent, json) => ipcRenderer.invoke('project:moveArchive', folder, parent, json),
+  resolveSync: (folder) => ipcRenderer.invoke('project:resolveSync', folder),
+  onProjectSync: (cb) => {
+    const listener = (_event: unknown, value: { folder: string; state: string; error?: string }): void => cb(value)
+    ipcRenderer.on('project:sync', listener)
+    return () => ipcRenderer.removeListener('project:sync', listener)
+  },
+  libtvLogin: () => ipcRenderer.invoke('libtv:login'),
+  libtvLoginStatus: () => ipcRenderer.invoke('libtv:loginStatus'),
+  libtvAccount: () => ipcRenderer.invoke('libtv:account'),
+  libtvWorkspaces: () => ipcRenderer.invoke('libtv:workspaces'),
+  libtvCanvases: (workspace, page) => ipcRenderer.invoke('libtv:canvases', workspace, page),
+  libtvModels: (type) => ipcRenderer.invoke('libtv:models', type),
+  libtvSchema: (model) => ipcRenderer.invoke('libtv:schema', model),
+  clipsPrepare: (folder, ids, options) => ipcRenderer.invoke('clips:prepare', folder, ids, options),
+  clipsStatus: (id) => ipcRenderer.invoke('clips:status', id),
+  clipsRead: (id, index) => ipcRenderer.invoke('clips:read', id, index),
+  clipsCancel: (id) => ipcRenderer.invoke('clips:cancel', id),
+  clipsConfirm: (id) => ipcRenderer.invoke('clips:confirm', id),
+  conversionKeyStatus: () => ipcRenderer.invoke('conversion:key-status'),
+  conversionKeySave: (value) => ipcRenderer.invoke('conversion:key-save', value),
   conversionScan: (custom) => ipcRenderer.invoke('conversion:scan', custom),
-  conversionOpen: (path) => ipcRenderer.invoke('conversion:open', path),
+  conversionOpen: (path, cloud) => ipcRenderer.invoke('conversion:open', path, cloud),
   conversionRelink: (id, path) => ipcRenderer.invoke('conversion:relink', id, path),
   conversionPreview: (id, format) => ipcRenderer.invoke('conversion:preview', id, format),
   conversionExport: (id, format) => ipcRenderer.invoke('conversion:export', id, format),

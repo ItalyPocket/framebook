@@ -55,6 +55,18 @@ export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem
   const [inS, setInS] = useState(0)
   const [outS, setOutS] = useState(media.durationS ?? 0)
   const [autoOpen, setAutoOpen] = useState(false)
+  const [captureMode, setCaptureMode] = useState<'frame' | 'clip'>(media.clip ? 'clip' : 'frame')
+  const [loop, setLoop] = useState(false)
+  const [volume, setVolume] = useState(() => {
+    const stored = Number(localStorage.getItem('framebook-preview-volume') ?? '1')
+    return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : 1
+  })
+  const [muted, setMuted] = useState(() => localStorage.getItem('framebook-preview-muted') === 'true')
+  useEffect(() => {
+    if (videoRef.current) { videoRef.current.volume = volume; videoRef.current.muted = muted }
+    localStorage.setItem('framebook-preview-volume', String(volume))
+    localStorage.setItem('framebook-preview-muted', String(muted))
+  }, [volume, muted, url])
   const seekTime = useStore((s) => s.seekTime)
   const activeWorkspace = useStore((s) => s.workspace)
   useEffect(() => {
@@ -74,10 +86,13 @@ export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem
   const folder = useStore((s) => s.projectFolder)
 
   useEffect(() => {
-    setInS(0)
-    setOutS(media.durationS ?? 0)
+    setCaptureMode(media.clip ? 'clip' : 'frame')
+    setInS(media.clip?.inS ?? 0)
+    setOutS(media.clip?.outS ?? media.durationS ?? 0)
     setTime(0)
   }, [media.id])
+
+  useEffect(() => { if (media.clip) { setInS(media.clip.inS); setOutS(media.clip.outS) } }, [media.clip?.inS, media.clip?.outS])
 
   const step = useCallback((frames: number) => {
     const v = videoRef.current
@@ -91,17 +106,18 @@ export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem
     const v = videoRef.current
     if (!v) return
     if (v.paused) {
+      if ((captureMode === 'clip' || media.clip) && (v.currentTime < inS || v.currentTime >= outS)) v.currentTime = inS
       void v.play()
       setPlaying(true)
     } else {
       v.pause()
       setPlaying(false)
     }
-  }, [])
+  }, [captureMode, media.clip, inS, outS])
 
   const bookmark = useCallback(async () => {
     const captureTime = Math.max(0, Math.min(videoRef.current?.currentTime ?? time, (duration || media.durationS || Infinity) - 1 / fps))
-    addFrame(media.id, captureTime, t('SHOT @ {time}', { time: fmt(captureTime) }))
+    addFrame(media.clip?.sourceMediaId ?? media.id, captureTime, t('SHOT @ {time}', { time: fmt(captureTime) }))
     const json = currentProjectJson()
     if (json && folder) await window.sbr.saveProject(folder, json)
     toast(t('Captured at {time}.', { time: fmt(captureTime) }), 'success')
@@ -165,16 +181,23 @@ export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem
             src={url}
             onLoadedMetadata={(e) => {
               if (activeWorkspace === workspace && seekTime !== null) { e.currentTarget.currentTime = seekTime; useStore.setState({ seekTime: null }) }
+              if (media.clip && seekTime === null) e.currentTarget.currentTime = media.clip.inS
               const d = e.currentTarget.duration
               setDuration(d)
               if (!media.durationS) setOutS(d)
             }}
-            onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+            onTimeUpdate={(e) => {
+              const video = e.currentTarget
+              if ((loop || media.clip) && outS > inS && video.currentTime >= outS) { if (loop) video.currentTime = inS; else { video.pause(); setPlaying(false) } }
+              setTime(video.currentTime)
+            }}
             onEnded={() => setPlaying(false)}
           />
         ) : <RelinkMedia media={media} />}
       </div>
       <div className="transport">
+        <button className="btn small" aria-label={t('Mute preview')} aria-pressed={muted} onClick={() => setMuted(!muted)}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M11 4 5 9H2v6h3l6 5z" />{muted || volume === 0 ? <path d="m16 9 6 6m0-6-6 6" /> : <path d="M15 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14" />}</svg></button>
+        <input className="preview-volume" aria-label={t('Preview volume')} type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => { setVolume(Number(e.target.value)); setMuted(false) }} />
         <button className="btn small" title={t("Frame back (←)")} onClick={() => step(-1)}>◀|</button>
         <button className="btn small" onClick={togglePlay} title={t("Play/Pause (Space)")}>
           {playing ? '❚❚' : '▶'}
@@ -192,7 +215,16 @@ export function VideoViewer({ media, workspace = 'capture' }: { media: MediaItem
         </div>
         <button className="btn small" onClick={() => setInS(time)} title={t("Set IN (I)")}>{t("IN")}</button>
         <button className="btn small" onClick={() => setOutS(time)} title={t("Set OUT (O)")}>{t("OUT")}</button>
-        <button className="btn small primary" onClick={bookmark} title={t("Bookmark frame (B)")}>{t("📌 Bookmark")}</button>
+        <select className="capture-mode" aria-label={t('Capture mode')} value={captureMode} onChange={(e) => setCaptureMode(e.target.value as 'frame' | 'clip')}><option value="frame">{t('Still frame')}</option><option value="clip">{t('Video clip')}</option></select>
+        {captureMode === 'clip' && <><span className="time">{fmt(inS)} – {fmt(outS)} · {fmt(Math.max(0, outS - inS))}</span><button className="btn small" aria-pressed={loop} onClick={() => setLoop(!loop)}>{t('Loop selection')}</button><button className="btn small primary" disabled={outS <= inS || !Number.isFinite(outS)} onClick={() => {
+          if (media.clip) useStore.getState().mutate('edit video clip range', doc => {
+            const clip = doc.media.find(item => item.id === media.id)
+            if (clip?.clip) { clip.clip.inS = inS; clip.clip.outS = outS; clip.durationS = outS - inS }
+          })
+          else useStore.getState().addMedia({ ...media, name: `${media.name.replace(/\.[^.]+$/, '')} ${fmt(inS)}–${fmt(outS)}`, capturedFrameId: undefined, clip: { sourceMediaId: media.id, inS, outS }, durationS: outS - inS })
+          toast(t('Video clip saved'), 'success')
+        }}>{t(media.clip ? 'Update clip' : 'Save clip')}</button></>}
+        {captureMode === 'frame' && <button className="btn small primary" onClick={bookmark} title={t("Bookmark frame (B)")}>{t("📌 Bookmark")}</button>}
         <button className="btn small" onClick={() => setAutoOpen(true)} title={t("Auto-board section")}>{t("▦ Auto-board")}</button>
       </div>
       {autoOpen && (

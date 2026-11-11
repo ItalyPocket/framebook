@@ -15,7 +15,9 @@ function stillPathFor(folder: string, frameId: string): string {
 const pendingStills = new Map<string, Promise<string | null>>()
 
 export function ensureStill(frameId: string, snapshot?: Frame): Promise<string | null> {
-  const key = `${useStore.getState().projectFolder}:${frameId}`
+  const state = useStore.getState()
+  const media = state.media((snapshot ?? state.frame(frameId))?.mediaId ?? null)
+  const key = `${state.projectFolder}:${frameId}:${media?.clip?.inS ?? ''}`
   const pending = pendingStills.get(key)
   if (pending) return pending
   const task = extractStill(frameId, snapshot).finally(() => pendingStills.delete(key))
@@ -26,15 +28,16 @@ export function ensureStill(frameId: string, snapshot?: Frame): Promise<string |
 async function extractStill(frameId: string, snapshot?: Frame): Promise<string | null> {
   const s = useStore.getState()
   const existing = s.stills[frameId]
-  if (existing) return existing.path
   const frame = snapshot ?? s.frame(frameId)
   if (!frame || !s.projectFolder) return null
   const media = s.media(frame.mediaId)
   if (!media) return null
+  const sourceTime = media.clip?.inS ?? frame.timeS
+  if (existing && (!media.clip || existing.timeS === sourceTime)) return existing.path
   const abs = s.mediaAbsPath(frame.mediaId)
   if (!abs) return null
 
-  const outPng = stillPathFor(s.projectFolder, frameId)
+  const outPng = stillPathFor(s.projectFolder, media.clip ? `${frameId}-${String(sourceTime).replace('.', '-')}` : frameId)
   await window.sbr.ensureDir(`${s.projectFolder}${s.projectFolder.includes('\\') ? '\\' : '/'}.frames`)
 
   if (media.kind === 'image') {
@@ -42,11 +45,11 @@ async function extractStill(frameId: string, snapshot?: Frame): Promise<string |
     const r = await window.sbr.extractFrame(abs, 0, outPng)
     if (!r.ok) return null
   } else {
-    const r = await window.sbr.extractFrame(abs, frame.timeS, outPng)
+    const r = await window.sbr.extractFrame(abs, sourceTime, outPng)
     if (!r.ok) return null
   }
   if (useStore.getState().projectFolder !== s.projectFolder) return null
-  useStore.getState().setStill(frameId, { path: outPng, width: media.width, height: media.height })
+  useStore.getState().setStill(frameId, { path: outPng, width: media.width, height: media.height, timeS: sourceTime })
   return outPng
 }
 
@@ -118,6 +121,9 @@ export async function buildExportInputs(frames?: Frame[]): Promise<ExportFrameIn
       sourceHeight: media?.height ?? 0,
       timeS: frame.timeS,
       mediaName: media?.name ?? '',
+      clipSource: media?.clip ? (s.media(media.clip.sourceMediaId)?.name ?? media.sourceFile) : undefined,
+      clipInS: media?.clip?.inS,
+      clipOutS: media?.clip?.outS,
       durationS: frame.durationS,
       shot: frame.shot,
       annotations: frame.annotations

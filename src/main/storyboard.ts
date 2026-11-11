@@ -104,7 +104,7 @@ export async function exportStoryboard(input: StoryboardExportInput): Promise<Fi
             ? framesFor(shot, column.id)
                 .map(
                   (frame, i) =>
-                    `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s [${tr(rolesFor(shot, column.id)[i] ?? 'Reference')}]`
+                    `${frame.clipSource ? `${frame.clipSource} [${frame.clipInS?.toFixed(3)}–${frame.clipOutS?.toFixed(3)}s]` : `${frame.mediaName} @ ${frame.timeS.toFixed(3)}s`} [${tr(rolesFor(shot, column.id)[i] ?? 'Reference')}]`
                 )
                 .join('\n')
             : cellText(shot, column.id)

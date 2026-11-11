@@ -70,6 +70,7 @@ export function run(bin: string, args: string[]): Promise<RunResult> {
 }
 
 export interface ProbeInfo {
+  videoDurationS?: number
   width: number
   height: number
   durationS?: number
@@ -96,6 +97,7 @@ export async function probeMedia(filePath: string): Promise<ProbeInfo> {
             width: Number(v.width) || 0,
             height: Number(v.height) || 0,
             durationS: durationS && isFinite(durationS) ? durationS : undefined,
+            videoDurationS: Number(v.duration) > 0 && isFinite(Number(v.duration)) ? Number(v.duration) : undefined,
             fps: fps && isFinite(fps) ? fps : undefined
           }
         }

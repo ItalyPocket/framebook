@@ -1,3 +1,6 @@
+import { projectData, primaryFolder } from './projectStorage'
+import { setupLibTVGeneration } from './libtvGeneration'
+import { setupClips } from './clips'
 import { setupConversion } from './conversion'
 import { setupLibTV } from './libtv'
 import { t, setLanguage, resolveLanguage, type LanguagePreference } from '../shared/i18n'
@@ -82,6 +85,8 @@ app.whenReady().then(() => {
   setupWorkspace()
   setupPreviews()
   setupLibTV(resolveReadablePath)
+  setupClips(resolveReadablePath)
+  setupLibTVGeneration()
   createWindow()
   void startControlServer(() => mainWindow)
   app.on('activate', () => {
@@ -166,15 +171,17 @@ ipcMain.handle('dialog:importImages', async () => {
 ipcMain.handle('project:save', (_e, folder: string, json: string) => saveProject(folder, json))
 
 ipcMain.handle('project:saveBackup', async (_e, folder: string, json: string) => {
-  await mkdir(join(folder, '.autosave'), { recursive: true })
-  await writeFile(join(folder, '.autosave', 'project.autosave.json'), json, 'utf-8')
+  const primary = await primaryFolder(folder)
+  await mkdir(join(primary, '.autosave'), { recursive: true })
+  await writeFile(join(primary, '.autosave', 'project.autosave.json'), json, 'utf-8')
   return true
 })
 
 ipcMain.handle('project:load', async (_e, folder: string) => {
   await registerProject(folder)
-  const main = join(folder, 'project.json')
-  const backup = join(folder, '.autosave', 'project.autosave.json')
+  const primary = await primaryFolder(folder)
+  const main = join(primary, 'project.json')
+  const backup = join(primary, '.autosave', 'project.autosave.json')
   const out: { json: string | null; backupJson: string | null; backupNewer: boolean; folder: string } = {
     json: null,
     backupJson: null,
@@ -184,8 +191,11 @@ ipcMain.handle('project:load', async (_e, folder: string) => {
   let mainTime = 0
   let backupTime = 0
   try {
-    out.json = await readFile(main, 'utf-8')
-    mainTime = (await stat(main)).mtimeMs
+    out.json = await projectData(folder)
+    mainTime = (await stat(main).catch(() => stat(join(folder, 'project.json')))).mtimeMs
+    const saved = JSON.parse(out.json)
+    if (resolve(folder) === resolve(primary) && typeof saved.settings?.archiveFolder === 'string') out.folder = saved.settings.archiveFolder
+    await saveProject(out.folder, out.json)
   } catch {}
   try {
     out.backupJson = await readFile(backup, 'utf-8')
@@ -382,14 +392,14 @@ ipcMain.handle('export:numbered', async (_e, input: ExportInput, format: 'png' |
 async function resolveReadablePath(folder: string, path: string): Promise<string> {
   try { return guardPath(folder, path) } catch {
     if (externalSources.get(folder)?.has(path)) return path
-    const project = JSON.parse(await readFile(join(folder, 'project.json'), 'utf8'))
+    const project = JSON.parse(await projectData(folder))
     if (project.media?.some((media: { externalPath?: string }) => media.externalPath === path)) return path
     throw new Error('File is not registered in this project')
   }
 }
 
 ipcMain.handle('media:reveal', async (_e, folder: string, id: string) => {
-  const project = JSON.parse(await readFile(join(folder, 'project.json'), 'utf8'))
+  const project = JSON.parse(await projectData(folder))
   const media = project.media.find((item: { id: string }) => item.id === id)
   if (!media) throw new Error('Media not found. Save the project first.')
   shell.showItemInFolder(await resolveReadablePath(folder, media.externalPath ?? media.sourceFile))

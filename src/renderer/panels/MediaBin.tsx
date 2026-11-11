@@ -52,7 +52,7 @@ function BinItem({
     >
       {item.kind === 'video' ? (
         url ? (
-          <video className="bin-thumb" src={url} muted preload="metadata" />
+          <video className="bin-thumb" src={url} muted preload="metadata" onLoadedMetadata={event => { if (item.clip) event.currentTarget.currentTime = item.clip.inS }} />
         ) : (
           <div className="bin-thumb" />
         )
@@ -70,7 +70,7 @@ function BinItem({
           {dur}
         </div>
         <div className="bin-kind">
-          {t(item.kind.toUpperCase())} {item.externalPath && '↗'}
+          {t(item.clip ? 'Video clip' : item.kind.toUpperCase())} {item.externalPath && '↗'}
           {!url && item.externalPath && (
             <button
               className="text-button"
@@ -108,7 +108,7 @@ export function MediaBin(): JSX.Element {
   const [filterOpen, setFilterOpen] = useState(false)
   const [orientation, setOrientation] = useState('all')
   const [storage, setStorage] = useState('all')
-  const [kind, setKind] = useState<'all' | 'video' | 'image'>('all')
+  const [kind, setKind] = useState<'all' | 'video' | 'image' | 'clip'>('all')
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [grid, setGrid] = useState(true)
@@ -228,7 +228,7 @@ export function MediaBin(): JSX.Element {
     setSelected([])
   }
   const visibleMedia = doc?.media.filter((item) =>
-    (kind === 'all' || item.kind === kind) &&
+    (kind === 'all' || (kind === 'clip' ? !!item.clip : item.kind === kind && !item.clip)) &&
     (orientation === 'all' || (orientation === 'landscape' ? item.width > item.height : orientation === 'portrait' ? item.height > item.width : item.width === item.height)) &&
     (storage === 'all' || (storage === 'external') === !!item.externalPath) &&
     (search ? item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()) : (item.folderId ?? null) === currentFolder)
@@ -236,6 +236,7 @@ export function MediaBin(): JSX.Element {
   return (
     <div className="bin panel" data-import-folder={currentFolder ?? ''}>
       <div className="bin-actions">
+        {visibleMedia.some(item => item.clip) && <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('clips-export', { detail: visibleMedia.filter(item => item.clip && (!selected.length || selected.includes(item.id))).map(item => item.id) }))}>{t('Export clips')}</button>}
         <button className="btn primary media-import" onClick={onImport}>
           <svg
             viewBox="0 0 24 24"
@@ -260,7 +261,7 @@ export function MediaBin(): JSX.Element {
         </div>
       </div>
       {filterOpen && <div className="media-filter-panel">
-        <label>{t('Type')}<select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>{['all','video','image'].map((v) => <option key={v} value={v}>{t({all:'All',video:'Videos',image:'Images'}[v]!)}</option>)}</select></label>
+        <label>{t('Type')}<select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>{['all','video','image','clip'].map((v) => <option key={v} value={v}>{t({all:'All',video:'Videos',image:'Images',clip:'Video clips'}[v]!)}</option>)}</select></label>
         <label>{t('Orientation')}<select value={orientation} onChange={(e) => setOrientation(e.target.value)}>{['all','landscape','portrait','square'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
         <label>{t('Storage')}<select value={storage} onChange={(e) => setStorage(e.target.value)}>{['all','internal','external'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
         <button className="text-button" onClick={() => { setKind('all'); setOrientation('all'); setStorage('all') }}>{t('Clear filters')}</button>
@@ -438,6 +439,7 @@ export function MediaBin(): JSX.Element {
       </div>
       {context && createPortal(<div className="context-shield" onClick={() => setContext(null)} onContextMenu={(e) => { e.preventDefault(); setContext(null) }}>
         <div className="floating-menu media-context" role="menu" style={{left: Math.max(8, Math.min(context.x, window.innerWidth - 260)), top: Math.max(8, Math.min(context.y, window.innerHeight - 340)), maxHeight: window.innerHeight - Math.max(8, Math.min(context.y, window.innerHeight - 340)) - 8}} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if(e.key === 'Escape') setContext(null); if(e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const items=[...e.currentTarget.querySelectorAll<HTMLElement>('button,select')];const index=items.indexOf(document.activeElement as HTMLElement);items[(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus() } }}>
+          {doc?.media.find(item => item.id === context.id)?.clip && <button onClick={() => { window.dispatchEvent(new CustomEvent('clips-export', { detail: [context.id] })); setContext(null) }}>{t('Export clips')}</button>}
           <button autoFocus onClick={() => { useStore.getState().selectMedia(context.id); setContext(null) }}>{t('Open preview')}</button>
           <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; setRename({id:item.id,name:item.name}); setContext(null) }}>{t('Rename')}</button>
           <button onClick={() => { useStore.getState().mutate('duplicate media', (project) => { const item = project.media.find((m) => m.id === context.id); if(item) project.media.push({...item,id:newId('media'),name:`${item.name} ${t('Copy')}`}) }); setContext(null) }}>{t('Duplicate')}</button>
@@ -447,7 +449,7 @@ export function MediaBin(): JSX.Element {
           <button onClick={() => { const item = doc!.media.find((m) => m.id === context.id)!; window.dispatchEvent(new CustomEvent('libtv-upload', {detail:{mediaIds:[item.id]}})); setContext(null) }}>{t('Upload to LibTV')}</button>
           <button onClick={() => {
             const state = useStore.getState(); const project = state.doc!
-            const count = project.frames.filter((f) => f.mediaId === context.id).length + project.storyboard.shots.filter((shot) => Object.values(shot.cells).some((cell) => Array.isArray(cell) && cell.some((image) => typeof image === 'object' && image !== null && 'frame' in image && image.frame.mediaId === context.id))).length
+            const count = project.media.filter(media => media.clip?.sourceMediaId === context.id).length + project.frames.filter((f) => f.mediaId === context.id).length + project.storyboard.shots.filter((shot) => Object.values(shot.cells).some((cell) => Array.isArray(cell) && cell.some((image) => typeof image === 'object' && image !== null && 'frame' in image && image.frame.mediaId === context.id))).length
             if(count) toast(t('Media is referenced by {count} items.',{count}), 'error')
             else { state.mutate('remove media', (p) => { p.media = p.media.filter((m) => m.id !== context.id) }); setSelected((ids) => ids.filter((id) => id !== context.id)); if(state.selectedMediaId === context.id) state.selectMedia(null) }
             setContext(null)

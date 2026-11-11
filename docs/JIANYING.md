@@ -19,7 +19,7 @@ Review tracks, missing media and the compatibility report before exporting. Reli
 
 Encrypted macOS drafts cannot currently be decoded. This release does not bundle the upstream Windows `plugin-core.exe`. Curved speed, reverse, transitions, keyframes, effects and color are not faithfully reproduced. These limitations appear in the compatibility report. Backups/templates may be older than the latest draft. Files from Windows usually require relinking on Mac.
 
-目前不支持 Mac 加密草稿，不附带上游 Windows 解密程序。曲线变速、倒放、转场、关键帧、特效及调色无法完整还原。备份／模板可能不是最新版；Windows 素材路径通常需要在 Mac 重新关联。
+Mac 加密草稿可选择通过 HTWMedia 云端转换：在草稿库选中时间线，展开云端密钥设置，保存密钥并勾选上传授权，再进入转换。仅上传草稿正文，不上传素材。密钥通过系统加密保存在本机，可随时移除。支持从时间线清单读取原始名称，以及读取预设中的内嵌时间线。不附带上游 Windows 解密程序。曲线变速、倒放、转场、关键帧、特效及调色无法完整还原。备份／模板可能不是最新版；Windows 素材路径通常需要在 Mac 重新关联。
 
 This is draft-to-XML conversion. It does not provide folder synchronization into Jianying, edit live Jianying projects, or add Framebook timestamp markers to them.
 

@@ -40,6 +40,11 @@ async function entry(folder: string, file: string): Promise<DraftEntry> {
     sources.push({ path: join(folder, filename), name: `Readable backup: ${filename}`, status: 'readable' })
   }
   const timelines = join(folder, 'Timelines')
+  let timelineNames: Record<string, string> = {}
+  try {
+    const project = JSON.parse(await readFile(join(timelines, 'project.json'), 'utf8'))
+    timelineNames = Object.fromEntries((project.timelines ?? []).filter((item: any) => !item.is_marked_delete).map((item: any) => [item.id, item.name]))
+  } catch {}
   const children = await readdir(timelines, { withFileTypes: true }).catch(() => [])
   for (const child of children) {
     if (!child.isDirectory() || child.name.startsWith('.')) continue
@@ -47,9 +52,9 @@ async function entry(folder: string, file: string): Promise<DraftEntry> {
     const filename = await source(parent)
     if (!filename) continue
     const timeline = await inspect(join(parent, filename))
-    if (timeline.fingerprint && fingerprints.has(timeline.fingerprint)) continue
+    if (!timelineNames[child.name] && timeline.fingerprint && fingerprints.has(timeline.fingerprint)) continue
     fingerprints.add(timeline.fingerprint)
-    sources.push({ path: join(parent, filename), name: typeof timeline.data?.name === 'string' && timeline.data.name.trim() || `Timeline ${sources.length}`, status: timeline.status })
+    sources.push({ path: join(parent, filename), name: timelineNames[child.name] || typeof timeline.data?.name === 'string' && timeline.data.name.trim() || `Timeline ${sources.length}`, status: timeline.status })
   }
   let name = basename(folder)
   try {

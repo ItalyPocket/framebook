@@ -12,6 +12,9 @@ export interface ExportFrameInput {
   sourceHeight: number
   timeS: number
   mediaName: string
+  clipSource?: string
+  clipInS?: number
+  clipOutS?: number
   durationS?: number
   shot?: ShotMeta
   annotations?: Annotation[]

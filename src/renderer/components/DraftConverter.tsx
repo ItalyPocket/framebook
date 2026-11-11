@@ -19,6 +19,8 @@ const errors = [
 ]
 function errorText(error: unknown): string {
   const text = String(error)
+  const localized = text.match(/[\u4e00-\u9fff][^\n]*/)?.[0]
+  if (localized) return localized
   const known = errors.find(value => text.includes(value))
   if (known) return t(known)
   if (text.includes('Invalid target time range:')) return t('A clip has an invalid time range. Check the original draft.')
@@ -44,6 +46,10 @@ function sourceName(name: string): string {
 export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
   const settings = useSettings(state => state.value)
   const projectFolder = useStore(state => state.projectFolder)
+  const [key, setKey] = useState('')
+  const [keyReady, setKeyReady] = useState(false)
+  const [cloudConsent, setCloudConsent] = useState(false)
+  useEffect(() => { void window.sbr.conversionKeyStatus().then(setKeyReady).catch(() => {}) }, [])
   const [entries, setEntries] = useState<DraftEntry[]>([])
   const [selectedPath, setSelectedPath] = useState('')
   const [sourcePath, setSourcePath] = useState('')
@@ -52,6 +58,7 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
   const [search, setSearch] = useState('')
   const [format, setFormat] = useState<ConversionFormat>(settings?.conversionFormat ?? 'xml')
   const [preview, setPreview] = useState('')
+  const [selectedClip, setSelectedClip] = useState('')
   const [previewBytes, setPreviewBytes] = useState(0)
   const [message, setMessage] = useState('')
   const [failed, setFailed] = useState(false)
@@ -84,6 +91,8 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
   useEffect(() => {
     const request = ++generation.current
     setPreview('')
+    setPreviewBytes(0)
+    setSelectedClip('')
     setMessage('')
     if (session) void window.sbr.conversionPreview(session.id, format).then(result => {
       if (request === generation.current) { setPreview(result.text); setPreviewBytes(result.bytes) }
@@ -99,10 +108,10 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
   }
   const open = (path?: string): void => {
     void run(async () => {
-      const next = await window.sbr.conversionOpen(path)
+      const next = await window.sbr.conversionOpen(path, cloudConsent)
       if (!next) return
       if (current.current) await window.sbr.conversionClose(current.current)
-      current.current = next.id
+        current.current = next.id
       setSession(next)
       setStep('conversion')
     })
@@ -151,8 +160,9 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
             <dl><div><dt>{t('Last modified')}</dt><dd>{new Date(selected.modified).toLocaleString()}</dd></div><div><dt>{t('Duration')}</dt><dd>{duration(selected.duration)}</dd></div><div><dt>{t('Timelines')}</dt><dd>{selected.sources.length}</dd></div></dl>
             <label className="field">{t('Select timeline')}<select aria-label={t('Select timeline')} value={sourcePath} disabled={busy} onChange={event => setSourcePath(event.target.value)}>{selected.sources.map(item => <option value={item.path} key={item.path}>{sourceName(item.name)} · {t(statuses[item.status])}</option>)}</select></label>
             <p className="draft-path" title={selected.folder}>{selected.folder}</p>
-            {source?.status !== 'readable' && <p className="draft-notice">{t(source?.status === 'encrypted' ? 'This draft is encrypted. You can browse it here, but this version cannot convert it. Import readable draft JSON to continue.' : 'This file does not contain a readable timeline. Choose another timeline or import draft JSON.')}</p>}
-            <button className="btn primary" disabled={busy || scanning || source?.status !== 'readable'} onClick={() => open(sourcePath)}>{t('Start conversion')}<span aria-hidden="true">↗</span></button>
+            {source?.status === 'invalid' && <p className="draft-notice">{t('This file does not contain a readable timeline. Choose another timeline or import draft JSON.')}</p>}
+            {source?.status === 'encrypted' && <div className="draft-notice"><strong>{t('Cloud draft conversion')}</strong><p>{t('Only the encrypted draft is uploaded to HTWMedia. Media files are not uploaded. Conversion requires an internet connection.')}</p><details><summary>{t('Cloud key settings')}</summary><p>{t(keyReady ? 'A key is stored securely on this Mac.' : 'No cloud key configured.')}</p><a href="https://htwmedia.dpdns.org/Home/GetApiKey" onClick={event => { event.preventDefault(); void window.sbr.openExternal(event.currentTarget.href) }}>{t('Get a cloud key')}</a><label className="field">{t('Cloud key')}<input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} /></label><button className="btn" disabled={busy || !key.trim()} onClick={() => void run(async () => { await window.sbr.conversionKeySave(key); setKey(''); setKeyReady(true) })}>{t('Save key')}</button><button className="btn" disabled={busy || !keyReady} onClick={() => void run(async () => { await window.sbr.conversionKeySave(''); setKeyReady(false) })}>{t('Remove key')}</button></details><label><input type="checkbox" checked={cloudConsent} onChange={event => setCloudConsent(event.target.checked)} />{t('Allow uploading this draft for conversion')}</label></div>}
+            <button className="btn primary" disabled={busy || scanning || source?.status === 'invalid' || !source || source.status === 'encrypted' && (!cloudConsent || !keyReady)} onClick={() => open(sourcePath)}>{t(busy ? 'Reading and converting draft…' : 'Start conversion')}<span aria-hidden="true">↗</span></button>
           </> : <p className="muted">{t('Select a draft to view its details.')}</p>}</aside>
         </div>
         <p className="draft-footnote">{t('Drafts are read only. Changing this folder also updates General settings.')}</p>
@@ -161,7 +171,14 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
         <div className="conversion-workflow">
           <section className="conversion-content">
             <h4>{t('Timeline overview')}</h4>
-            <div className="conversion-timeline">{[...new Set(timeline.clips.map(clip => clip.track))].map(track => <div className="conversion-track-row" key={track}><small>{t('Track {number}', { number: track + 1 })}</small><div className="conversion-track">{timeline.clips.filter(clip => clip.track === track).map(clip => <span key={clip.id} title={`${clip.text || clip.name} · ${duration(clip.start)}`} style={{ left: `${clip.start / Math.max(1, timeline.duration) * 100}%`, width: `${clip.duration / Math.max(1, timeline.duration) * 100}%` }}>{clip.text || clip.name}</span>)}</div></div>)}</div>
+            <div className="conversion-legend"><span className="approximate">{t('Approximate conversion')}</span><span className="unsupported">{t('Unsupported features')}</span><span className="unverified">{t('Needs review')}</span><span className="hidden">{t('Hidden clip')}</span></div>
+            <div className="conversion-timeline">{[...new Set(timeline.clips.map(clip => clip.track))].map(track => <div className="conversion-track-row" key={track}><small>{t('Track {number}', { number: track + 1 })}</small><div className="conversion-track">{timeline.clips.filter(clip => clip.track === track).map(clip => {
+              const issues = timeline.issues.filter(issue => issue.clips.includes(clip.id))
+              const level = issues.some(issue => issue.level === 'unsupported') ? 'unsupported' : issues.some(issue => issue.level === 'approximate') ? 'approximate' : issues.length ? 'unverified' : ''
+              const description = [clip.text || clip.name, clip.enabled === false ? t('Hidden clip') : '', ...issues.map(issue => t(issue.feature))].filter(Boolean).join(' · ')
+              return <button type="button" key={clip.id} className={`${level} ${issues.some(issue => issue.level === 'approximate') ? 'has-approximation' : ''} ${clip.enabled === false ? 'hidden-clip' : ''}`} title={description} aria-label={description} aria-pressed={selectedClip === clip.id} onClick={() => setSelectedClip(clip.id)} style={{ left: `${clip.start / Math.max(1, timeline.duration) * 100}%`, width: `${clip.duration / Math.max(1, timeline.duration) * 100}%` }}>{clip.text || clip.name}</button>
+            })}</div></div>)}</div>
+            {selectedClip && <div className="draft-notice" role="status"><strong>{timeline.clips.find(clip => clip.id === selectedClip)?.name}</strong>{timeline.clips.find(clip => clip.id === selectedClip)?.enabled === false && <p>{t('This clip is hidden and will remain disabled in the exported timeline.')}</p>}<ul>{timeline.issues.filter(issue => issue.clips.includes(selectedClip)).map(issue => <li key={issue.feature}><span className={`draft-status ${issue.level}`}>{t(issue.level)}</span> {t(issue.feature)}</li>)}</ul></div>}
             <details open={timeline.missing.length > 0}><summary>{t('Missing media')}<span>{timeline.missing.length}</span></summary>{timeline.missing.length === 0 && <p className="muted">{t('All referenced media is available.')}</p>}{timeline.missing.map(path => <div className="conversion-missing" key={path}><span title={path}>{path}</span><button className="btn" disabled={busy} onClick={() => void run(async () => setSession(await window.sbr.conversionRelink(session!.id, path)))}>{t('Relink')}</button></div>)}</details>
             <details open><summary>{t('Compatibility report')}<span>{timeline.issues.length}</span></summary><p className="muted">{t('Text styles, embedded video audio and unsupported effects require checking in the destination editor. JSON preserves the original draft data.')}</p><ul className="conversion-issues">{timeline.issues.map((issue, index) => <li key={index}><span className={`draft-status ${issue.level}`}>{t(issue.level)}</span><strong>{t(issue.feature)}</strong><small>{t('{count} clips', { count: issue.clips.length })}</small></li>)}</ul></details>
             <details><summary>{t('File content preview')}</summary><pre className="conversion-preview">{format === 'stl' ? t('Binary subtitle file · {count} bytes', { count: previewBytes }) : preview.slice(0, 200000)}</pre></details>
@@ -177,6 +194,7 @@ export function DraftConverter({ onClose }: { onClose(): void }): JSX.Element {
               }
               setMessage(t('Imported {count} media files', { count }))
             })}>{t('Add referenced media to this project')}</button>}
+            {format === 'xml' && <details className="draft-notice"><summary>{t('Import into DaVinci Resolve')}</summary><p>{t('In Resolve, choose File → Import → Timeline, select the XML, then confirm the second import settings dialog. Keep source clip import and sizing information enabled.')}</p><p>{t('If import does not respond and Save or Import is disabled, finish any open dialog. Save your work and restart Resolve if needed.')}</p></details>}
             <button className="btn primary" disabled={busy || !preview} onClick={() => void run(async () => {
               const path = await window.sbr.conversionExport(session!.id, format)
               if (path) setMessage(t('Export complete: {path}', { path }))

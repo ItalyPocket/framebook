@@ -1,4 +1,5 @@
 import { DraftConverter } from './components/DraftConverter'
+import { ClipExports } from './components/ClipExports'
 import { LibTVUploads } from './components/LibTV'
 import { DockLayout } from './components/DockLayout'
 import { useLanguage } from './language'
@@ -281,6 +282,9 @@ export function App(): JSX.Element {
     visited.current = { project: doc?.id ?? '', views: new Set() }
   visited.current.views.add(workspace)
 
+  useEffect(() => window.sbr.onProjectSync(value => {
+    if (value.folder === useStore.getState().projectFolder && value.state === 'error') useStore.getState().toast(t('Saved internally; archive sync failed: {error}', { error: value.error ?? '' }), 'error')
+  }), [])
   useAutosave()
   useKeyboard(!home && !introActive)
   useEffect(() => {
@@ -343,7 +347,7 @@ export function App(): JSX.Element {
       {panel === 'library' && (
         <ProjectLibrary searchInitiallyOpen={searchLibrary} onOpened={() => setHome(false)} onClose={() => setPanel(null)} />
       )}
-      <LibTVUploads />
+      <LibTVUploads /><ClipExports />
       {conversionOpen && <DraftConverter onClose={() => setConversionOpen(false)} />}
       {panel === 'settings' && <SettingsDialog onClose={() => setPanel(null)} />}
     </Fragment>

@@ -259,7 +259,7 @@ export function Production({ callSheet = false }: { callSheet?: boolean }): JSX.
       }
       if (!shots.length) throw new Error(t('No shots to export'))
       setPreview(
-        await window.sbr.preparePreview({
+        await window.sbr.preparePreview({ projectFolder: folder ?? undefined,
           storyboard: {
             projectName: doc.name,
             documentLabel: t(callSheet ? 'Call sheet' : 'Shooting plan'),

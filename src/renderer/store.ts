@@ -34,6 +34,7 @@ export interface Toast {
 }
 
 export interface ExtractedStill {
+  timeS?: number
   /** Absolute path on disk to the full-res extracted PNG for a frame. */
   path: string
   width: number
@@ -408,7 +409,7 @@ export const useStore = create<SbrState>((set, get) => ({
   },
 
   addMedia(item) {
-    const created = createMediaItem(item)
+    const created = createMediaItem({ ...item, id: newId('media') })
     get().mutate('import media', (doc) => {
       doc.media.push(created)
     })

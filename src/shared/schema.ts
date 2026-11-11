@@ -40,6 +40,7 @@ export function createMediaItem(
     externalPath: fields.externalPath,
     folderId: fields.folderId,
     capturedFrameId: fields.capturedFrameId,
+    clip: fields.clip,
     name: fields.name,
     durationS: fields.durationS,
     width: fields.width,
@@ -120,6 +121,8 @@ export function parseProject(json: string): ParseOutcome {
     frames,
     storyboard: sanitizeStoryboard(o.storyboard, frames, issues, typeof o.name === 'string' ? o.name : 'Untitled'),
     settings: {
+      archiveFolder: typeof settings.archiveFolder === 'string' ? settings.archiveFolder : undefined,
+      exports: sanitizeExports(settings.exports),
       libtv: settings.libtv && typeof settings.libtv === 'object' && typeof (settings.libtv as { projectId?: unknown }).projectId === 'string' ? { projectId: (settings.libtv as { projectId: string }).projectId, name: typeof (settings.libtv as { name?: unknown }).name === 'string' ? (settings.libtv as { name: string }).name : 'LibTV' } : undefined,
       gallerySort: settings.gallerySort === 'time' ? 'time' : 'manual',
       defaultProfileId:
@@ -149,6 +152,7 @@ function sanitizeMedia(m: unknown, issues: ParseIssue[]): MediaItem | null {
     sourceFile: o.sourceFile,
     workingFile: typeof o.workingFile === 'string' ? o.workingFile : undefined,
     externalPath: typeof o.externalPath === 'string' ? o.externalPath : undefined,
+    clip: sanitizeClip(o.clip),
     capturedFrameId: typeof o.capturedFrameId === 'string' ? o.capturedFrameId : undefined,
     folderId: typeof o.folderId === 'string' ? o.folderId : undefined,
     name: typeof o.name === 'string' ? o.name : o.sourceFile,
@@ -367,4 +371,27 @@ export function formatStoryDuration(seconds: number): string {
   const remainder = (hundredths % 6000) / 100
   const value = remainder.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
   return `${minutes}:${remainder < 10 ? '0' : ''}${value}`
+}
+
+function sanitizeClip(raw: unknown): MediaItem['clip'] {
+  if (!raw || typeof raw !== 'object') return undefined
+  const value = raw as Record<string, unknown>
+  if (typeof value.sourceMediaId !== 'string' || typeof value.inS !== 'number' || typeof value.outS !== 'number' || !Number.isFinite(value.inS) || !Number.isFinite(value.outS) || value.inS < 0 || value.outS <= value.inS) return undefined
+  return { sourceMediaId: value.sourceMediaId, inS: value.inS, outS: value.outS }
+}
+
+export function defaultProjectExports(): import('./types').ProjectExportSettings {
+  return { storyboard: { directory: '导出/分镜本', ask: false }, frames: { directory: '导出/静帧', ask: false }, clips: { directory: '导出/视频片段', ask: false }, video: { format: 'mp4', resolution: 'native', muted: false } }
+}
+function sanitizeExports(raw: unknown): import('./types').ProjectExportSettings {
+  const result = defaultProjectExports()
+  if (!raw || typeof raw !== 'object') return result
+  const value = raw as Record<string, unknown>
+  for (const key of ['storyboard', 'frames', 'clips'] as const) {
+    const item = value[key] as Record<string, unknown> | undefined
+    if (item && typeof item === 'object') result[key] = { directory: typeof item.directory === 'string' && item.directory.trim() ? item.directory : result[key].directory, ask: item.ask === true }
+  }
+  const video = value.video as Record<string, unknown> | undefined
+  if (video && typeof video === 'object') result.video = { format: video.format === 'mov' ? 'mov' : 'mp4', resolution: ['2160', '1080', '720'].includes(String(video.resolution)) ? video.resolution as '2160' | '1080' | '720' : 'native', muted: video.muted === true }
+  return result
 }

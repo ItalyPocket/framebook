@@ -1,3 +1,13 @@
+## 2.7.0-beta.7
+
+- Add preview volume and mute, non-destructive video ranges, loop playback and editable clip records.
+- Add MP4/H.264 and MOV/ProRes 422 clip exports, native/2160p/1080p/720p resolution, audio controls, progress and in-app preview.
+- Support video references in storyboard image cells; PDF uses covers and CSV retains source ranges.
+- Keep canonical project data and recovery copies internally; synchronize project data to media archives with conflict protection and offline editing.
+- Store export defaults per project and resolve relative output locations within the project archive.
+- Replace legacy LibTV access keys with official CLI browser login, workspace/canvas linking, verified node uploads and explicit image/video generation.
+- Include the later 2.7 draft conversion corrections for source range, overlays and still-image transforms.
+
 ## 2.7.0-beta.2
 
 - Replace file-oriented draft selection with a project library using covers, readable names, timestamps, duration and clear read/encryption status.

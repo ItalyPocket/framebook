@@ -54,7 +54,7 @@ export function Gallery(): JSX.Element {
     if (!s.projectFolder || !s.doc) return
     setExporting(true)
     try {
-      const result = await window.sbr.preparePreview({
+      const result = await window.sbr.preparePreview({ projectFolder: s.projectFolder,
         frames: {
           projectName: s.doc.name,
           exportsRoot: `${s.projectFolder}/exports`,

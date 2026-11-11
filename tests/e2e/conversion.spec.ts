@@ -1,6 +1,8 @@
 import { test, expect, _electron as electron } from '@playwright/test'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
 import { tmpdir } from 'os'
+import { execFileSync } from 'child_process'
+import ffmpeg from 'ffmpeg-static'
 import { join } from 'path'
 import { parseDraft, convertTimeline, rate } from '../../src/main/draftConversion'
 
@@ -14,7 +16,7 @@ test('preserves source in points, rational rates and Unicode subtitles', () => {
   const timeline = parseDraft(draft, '/draft.json', 'Draft')
   expect(rate(timeline.fps)).toEqual({ numerator: 30000, denominator: 1001, timebase: 30, ntsc: true })
   const xml = String(convertTimeline(timeline, 'xml'))
-  expect(xml).toContain('<in>120</in><out>168</out>')
+  expect(xml).toContain('<in>150</in><out>210</out>')
   expect(xml).toContain('<start>30</start><end>90</end>')
   expect(xml).not.toContain('Time Remap')
   expect(xml).toContain('<sourcetrack><mediatype>audio</mediatype>')
@@ -45,10 +47,16 @@ test('opens conversion in the application without changing draft files', async (
     await expect(page.getByRole('heading', { name: '测试时间线' })).toBeVisible()
     const session = await page.evaluate(path => window.sbr.conversionOpen(path), path)
     expect(session.timeline.missing).toEqual(['/missing/a.mp4'])
+    const media = join(root, 'relinked.mp4')
+    execFileSync(ffmpeg!, ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'color=blue:s=320x180:r=24:d=2', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-t', '3', '-c:v', 'libx264', '-c:a', 'aac', media])
+    await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }) }, media)
+    const relinked = await page.evaluate(id => window.sbr.conversionRelink(id, '/missing/a.mp4'), session.id)
+    expect(relinked.timeline.clips[0]).toMatchObject({ width: 320, height: 180, fps: 24, materialDuration: 2000000 })
+    expect(relinked.timeline.missing).toEqual([])
     const result = await page.evaluate(id => window.sbr.conversionPreview(id, 'srt'), session.id)
     expect(result.text).toContain('中文字幕')
     writeFileSync(join(root, 'encrypted.json'), 'encrypted-content')
-    await expect(page.evaluate(path => window.sbr.conversionOpen(path), join(root, 'encrypted.json'))).rejects.toThrow('Encrypted or unreadable')
+    await expect(page.evaluate(path => window.sbr.conversionOpen(path), join(root, 'encrypted.json'))).rejects.toThrow('加密草稿')
     expect(readFileSync(path, 'utf8')).toBe(original)
     const exported = join(root, 'Converted.srt')
     await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }) }, exported)
@@ -94,7 +102,7 @@ test('groups drafts, saves the folder and opens the localized conversion flow', 
     expect(entries.find((entry: any) => entry.name === '加密工程').sources).toHaveLength(2)
     await page.locator('.draft-card').filter({ hasText: '加密工程' }).click()
     await expect(page.getByRole('button', { name: '进入转换', exact: true })).toBeDisabled()
-    await expect(page.getByText('此草稿已加密，可以在草稿库中浏览，但当前版本暂不支持转换。可导入可读取的草稿 JSON 继续。', { exact: true })).toBeVisible()
+    await expect(page.getByText('云端草稿转换', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: '搜索草稿', exact: true }).click()
     await page.getByRole('textbox', { name: '搜索草稿', exact: true }).fill('竖版广告')
     await expect(page.locator('.draft-card')).toHaveCount(1)
@@ -118,4 +126,103 @@ test('groups drafts, saves the folder and opens the localized conversion flow', 
     await expect(page.locator('.draft-card')).toHaveCount(2)
     console.log(`Draft library screenshots: ${root}`)
   } finally { await app.close() }
+})
+
+test('accepts omitted zero starts without losing source in points', () => {
+  const raw = structuredClone(draft)
+  delete (raw.tracks[0].segments[0].target_timerange as any).start
+  delete (raw.tracks[0].segments[0] as any).source_timerange.start
+  const timeline = parseDraft(raw, '/draft.json', 'Draft')
+  expect(timeline.clips[0].start).toBe(0)
+  expect(timeline.clips[0].sourceStart).toBe(0)
+  expect(String(convertTimeline(timeline, 'xml'))).toContain('<in>0</in><out>60</out>')
+})
+
+test('decrypts only after consent and keeps the cloud key out of exports', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'framebook-cloud-'))
+  mkdirSync(join(root, '.app-data'))
+  writeFileSync(join(root, '.app-data/settings.json'), JSON.stringify({ introMode: 'off', simplifyAnimations: true }))
+  const path = join(root, 'draft_info.json')
+  writeFileSync(path, 'encrypted-test-body')
+  const app = await electron.launch({ args: ['out/main/index.js'], env: { ...process.env, SBR_SMOKE_DIR: root } })
+  try {
+    const page = await app.firstWindow()
+    await page.evaluate(() => window.sbr.conversionKeySave('isolated-test-key'))
+    expect(await page.evaluate(() => window.sbr.conversionKeyStatus())).toBe(true)
+    await app.evaluate((_electron, raw) => {
+      globalThis.fetch = async (_url, options) => {
+        if ((options?.headers as Record<string, string>)?.AuthKey !== 'isolated-test-key') throw new Error('Missing key')
+        if (!((options?.body as FormData).get('jsonFile') instanceof Blob)) throw new Error('Missing file')
+        return new Response(JSON.stringify({ success: true, draft_content: JSON.stringify(raw) }), { status: 200 })
+      }
+    }, draft)
+    await expect(page.evaluate(path => window.sbr.conversionOpen(path), path)).rejects.toThrow('加密草稿')
+    const session = await page.evaluate(path => window.sbr.conversionOpen(path, true), path)
+    const preview = await page.evaluate(id => window.sbr.conversionPreview(id, 'xml'), session!.id)
+    expect(preview.text).toContain('<xmeml')
+    expect(preview.text).not.toContain('isolated-test-key')
+    expect(readFileSync(path, 'utf8')).toBe('encrypted-test-body')
+    await page.evaluate(() => window.sbr.conversionKeySave(''))
+    expect(await page.evaluate(() => window.sbr.conversionKeyStatus())).toBe(false)
+  } finally { await app.close() }
+})
+
+test('exports still images with Resolve-compatible duration and timecode', () => {
+  const raw = structuredClone(draft)
+  const material = raw.materials.videos[0]
+  material.path = '/missing/overlay.png'
+  const xml = String(convertTimeline(parseDraft(raw, '/draft.json', 'Draft'), 'xml'))
+  expect(xml).toContain('<stillframe>TRUE</stillframe>')
+  expect(xml).toContain('<video><duration>1</duration>')
+  expect(xml).toContain('<timecode><string>00:00:00:00</string>')
+})
+
+test('declares effect units and uses timeline frames for speed-adjusted trims', () => {
+  const raw = structuredClone(draft)
+  const segment = raw.tracks[0].segments[0] as any
+  segment.source_timerange = { start: 2000000, duration: 4000000 }
+  segment.clip = { scale: { x: 1.2, y: 1.2 } }
+  const xml = String(convertTimeline(parseDraft(raw, '/draft.json', 'Draft'), 'xml'))
+  expect(xml).toContain('<parameterid>speed</parameterid><value>200</value><valuemin>-10000</valuemin><valuemax>10000</valuemax>')
+  expect(xml).toContain('<parameterid>scale</parameterid><value>120</value><valuemin>0</valuemin><valuemax>10000</valuemax>')
+  expect(xml).toContain('<in>30</in><out>90</out>')
+})
+
+test('preserves hidden tracks and clips without treating empty animation records as effects', () => {
+  const raw = structuredClone(draft) as any
+  raw.materials.material_animations = [{ id: 'empty', type: 'sticker_animation' }]
+  raw.tracks[0].visible = false
+  raw.tracks[0].segments[0].extra_material_refs = ['empty']
+  raw.tracks[1].segments[0].visible = false
+  const timeline = parseDraft(raw, '/draft.json', 'Draft')
+  expect(timeline.clips.every(clip => clip.enabled === false)).toBe(true)
+  expect(timeline.issues.some(issue => issue.feature === 'Keyframe animation')).toBe(false)
+  const xml = String(convertTimeline(timeline, 'xml'))
+  expect(xml).toContain('<enabled>FALSE</enabled>')
+  expect(String(convertTimeline(timeline, 'srt'))).toBe('')
+})
+
+test('compensates FCP7 still-image height fitting without changing video scale or source paths', () => {
+  const raw = structuredClone(draft) as any
+  raw.canvas_config = { width: 480, height: 960 }
+  Object.assign(raw.materials.videos[0], { path: '/original/title.png', width: 800, height: 200, type: 'photo' })
+  raw.tracks[0].segments[0].clip = { scale: { x: 0.8, y: 0.8 }, transform: { x: 0.25, y: -0.5 } }
+  const xml = String(convertTimeline(parseDraft(raw, '/draft.json', 'Draft'), 'xml'))
+  expect(xml).toContain('<parameterid>scale</parameterid><value>10</value>')
+  expect(xml).toContain('<horiz>0.015625</horiz><vert>0.25</vert>')
+  expect(xml).toContain('file:///original/title.png')
+  Object.assign(raw.materials.videos[0], { width: 200, height: 800 })
+  const portrait = String(convertTimeline(parseDraft(raw, '/draft.json', 'Draft'), 'xml'))
+  expect(portrait).toContain('<parameterid>scale</parameterid><value>80</value>')
+  expect(portrait).toContain('<horiz>0.25</horiz><vert>0.25</vert>')
+  raw.materials.videos[0].path = '/original/video.mp4'
+  raw.materials.videos[0].type = 'video'
+  expect(String(convertTimeline(parseDraft(raw, '/draft.json', 'Draft'), 'xml'))).toContain('<parameterid>scale</parameterid><value>80</value>')
+})
+
+
+test('does not mistake overlay-track flags for hidden clips', () => {
+  const raw = structuredClone(draft) as any
+  raw.tracks[0].flag = 2
+  expect(parseDraft(raw, '/draft.json', 'Draft').clips[0].enabled).toBe(true)
 })

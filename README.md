@@ -9,7 +9,7 @@
 > **Latest release: 2.5.1 · Apple Silicon Mac.** [Download the DMG](https://github.com/ItalyPocket/framebook/releases/tag/v2.5.1). Screenshots below were captured in 2.5.0.
 
 
-> Source version 2.6.0 temporarily disables AI features; the published 2.5.1 installer predates this change.
+> Current source: **2.7.0-beta.7**. Adds video ranges, per-project export defaults, internal data backups and LibTV CLI login. See [setup and storage details](docs/VIDEO-LIBTV.md).
 
 ## From reference to shooting plan
 
@@ -54,7 +54,7 @@ Build scene groups around the same shot references. Each group carries its own d
 - Imports are copied into the `.sbref` project package by default. External references are optional; ZIP sharing collects linked assets into a portable copy.
 - Chinese/English UI, configurable intro/transition effects and reduced-motion support.
 
-Capture, editing and export run locally. AI features are temporarily disabled and their controls are hidden. Existing prompt data remains readable in older projects. Do not publish private footage or project packages in this source repository.
+Capture, editing and export run locally. Legacy AI controls remain disabled. Optional LibTV generation uses browser login and requires explicit confirmation before using account credits. Existing prompt data remains readable in older projects. Do not publish private footage or project packages in this source repository.
 
 ## Develop
 

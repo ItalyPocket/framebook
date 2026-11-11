@@ -15,6 +15,7 @@ export interface MediaItem {
   sourceFile: string
   workingFile?: string
   externalPath?: string
+  clip?: { sourceMediaId: string; inS: number; outS: number }
   capturedFrameId?: string
   folderId?: string
   /** Original filename, for display. */
@@ -94,7 +95,16 @@ export interface Frame {
   annotations: Annotation[]
 }
 
+export interface ProjectExportSettings {
+  storyboard: { directory: string; ask: boolean }
+  frames: { directory: string; ask: boolean }
+  clips: { directory: string; ask: boolean }
+  video: { format: 'mp4' | 'mov'; resolution: 'native' | '2160' | '1080' | '720'; muted: boolean }
+}
+
 export interface ProjectSettings {
+  exports?: ProjectExportSettings
+  archiveFolder?: string
   libtv?: import('./libtv').LibTVTarget
   gallerySort: 'time' | 'manual'
   defaultProfileId: string
@@ -114,7 +124,7 @@ export interface Project {
   settings: ProjectSettings
 }
 
-export const PROJECT_VERSION = 7
+export const PROJECT_VERSION = 8
 
 /** Default animatic hold time (seconds) for a new frame. */
 export const DEFAULT_FRAME_DURATION_S = 2

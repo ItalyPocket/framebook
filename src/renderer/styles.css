@@ -4156,7 +4156,7 @@ html[data-simplify-animations='true'] .launch-intro * {
 .conversion-track-row { display: flex; align-items: center; gap: 8px; }
 .conversion-track-row > small { font: 10px var(--mono,monospace); color: var(--text-dim); width: 40px; flex: none; white-space: nowrap; }
 .conversion-track { position: relative; height: 32px; margin: 3px 0; flex: 1; min-width: 0; }
-.conversion-track span { position: absolute; box-sizing: border-box; height: 28px; background: var(--accent); color: white; font-size: 11px; overflow: hidden; white-space: nowrap; padding: 4px; border: 1px solid white; min-width: 2px; }
+.conversion-track button { position: absolute; box-sizing: border-box; height: 28px; background: var(--accent); color: white; font-size: 11px; overflow: hidden; white-space: nowrap; padding: 4px; border: 1px solid white; min-width: 2px; }
 .conversion-content details { border-top: 1px solid var(--border); padding: 12px 0; }
 .conversion-content summary { cursor: pointer; font-weight: 600; }
 .conversion-content summary > span { margin-left: 10px; color: var(--text-dim); font: 12px var(--mono,monospace); }
@@ -4183,3 +4183,28 @@ html[data-simplify-animations='true'] .launch-intro * {
   .draft-grid { min-height: 200px; max-height: 36vh; }
   .draft-location { flex-wrap: wrap; }
 }
+
+.conversion-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; margin-bottom: 8px; }
+.conversion-legend span::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 5px; background: #42618e; }
+.conversion-legend .approximate::before { background: #e6b43b; }
+.conversion-legend .unsupported::before { background: #bb3737; }
+.conversion-legend .hidden::before { background: #717777; }
+.conversion-track button.approximate { background: #f5d579; color: #342703; }
+.conversion-track button.unsupported { background: #a83238; color: white; }
+.conversion-track button.unverified { background: #42618e; }
+.conversion-track button.has-approximation { border-top: 5px solid #f5c33e; }
+.conversion-track button.hidden-clip { background-image: repeating-linear-gradient(135deg, transparent, transparent 5px, #ffffff30 5px, #ffffff30 8px); border-style: dashed; opacity: .65; }
+.conversion-track button[aria-pressed=true] { outline: 2px solid var(--text); outline-offset: 1px; z-index: 1; }
+
+.preview-volume { width: 70px; flex: 0 0 70px; accent-color: #1737d1; }
+
+.clip-export-options { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.clip-export-options label { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.clip-export-preview { display:block; max-width:100%; height:45vh; margin:16px auto; background:#f4f5f2; }
+.clip-export-row { display:flex; gap:12px; align-items:center; padding:8px 0; flex-wrap:wrap; }
+.clip-export-row > span:first-child { flex:1; min-width:140px; }
+
+.transport .capture-mode { width: 118px; flex: 0 0 auto; min-width: 100px; }
+.project-export-settings, .libtv-studio, .libtv-settings { border-top: 1px solid var(--border); padding-top: 14px; margin: 16px 0; }
+.project-export-settings summary, .libtv-studio summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.clip-export-row progress { accent-color: #1737d1; }
