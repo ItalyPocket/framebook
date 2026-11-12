@@ -15,7 +15,7 @@ test('home saves changes, replays intro and resumes or reopens the project', asy
   try {
     const page = await app.firstWindow()
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setContentSize(1280, 800))
-    await page.locator('.language-select').selectOption('en')
+    await page.locator('.language-select').selectOption('zh-CN')
     expect(await page.evaluate(async () => {
       const settings = await window.sbr.getSettings()
       return [settings.effectScheme, settings.introDuration]
@@ -28,16 +28,16 @@ test('home saves changes, replays intro and resumes or reopens the project', asy
       state.mutate('Edit synopsis', (doc: any) => { doc.storyboard.synopsis = 'Preserved on return home' })
       return folder
     })
-    await page.getByRole('button', { name: 'Home', exact: true }).click()
+    await page.getByRole('button', { name: '主页', exact: true }).click()
     await expect(page.locator('.welcome')).toBeVisible()
     await expect(page.locator('.launch-intro')).toBeVisible()
     await expect(page.locator('.launch-intro')).toHaveCount(0)
     expect(JSON.parse(readFileSync(join(folder, 'project.json'), 'utf8')).storyboard.synopsis).toBe('Preserved on return home')
-    await page.getByRole('button', { name: 'Continue project', exact: true }).click()
+    await page.getByRole('button', { name: '继续项目', exact: true }).click()
     await expect(page.locator('.workspace-nav')).toBeVisible()
-    await page.getByRole('button', { name: 'Home', exact: true }).click()
+    await page.getByRole('button', { name: '主页', exact: true }).click()
     await expect(page.locator('.launch-intro')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Open Project…', exact: true }).click()
+    await page.getByRole('button', { name: '打开项目…', exact: true }).click()
     await page.locator('.project-card').first().click()
     await expect(page.locator('.workspace-nav')).toBeVisible()
   } finally {

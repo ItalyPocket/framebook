@@ -256,32 +256,7 @@ export function MediaBin(): JSX.Element {
           <button aria-pressed={grid} title={t('Thumbnails')} aria-label={t('Thumbnails')} onClick={() => setGrid(true)}>▦</button>
           <button aria-pressed={!grid} title={t('List')} aria-label={t('List')} onClick={() => setGrid(false)}>☷</button>
         </div>
-      </div>
-      {filterOpen && <div className="media-filter-panel">
-        <label>{t('Type')}<select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>{['all','video','image','clip'].map((v) => <option key={v} value={v}>{t({all:'All',video:'Videos',image:'Images',clip:'Video clips'}[v]!)}</option>)}</select></label>
-        <label>{t('Orientation')}<select value={orientation} onChange={(e) => setOrientation(e.target.value)}>{['all','landscape','portrait','square'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
-        <label>{t('Storage')}<select value={storage} onChange={(e) => setStorage(e.target.value)}>{['all','internal','external'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
-        <button className="text-button" onClick={() => { setKind('all'); setOrientation('all'); setStorage('all') }}>{t('Clear filters')}</button>
-      </div>}
       <SearchControl label="Search media" value={search} onChange={setSearch} />
-      <div
-        className="media-breadcrumb"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          const id = event.dataTransfer.getData('application/framebook-media')
-          if (id) moveMedia(selected.includes(id) ? selected : [id], current?.parentId ?? null)
-        }}
-      >
-        <button className="text-button" onClick={() => setCurrentFolder(null)}>
-          {t('Media bin')}
-        </button>
-        {trail.map((item) => (
-          <button className="text-button" key={item.id} onClick={() => setCurrentFolder(item.id)}>
-            {' '}
-            / {item.name}
-          </button>
-        ))}
-      </div>
       <div className="media-folder-tools">
         <button
           className="icon-button"
@@ -327,6 +302,31 @@ export function MediaBin(): JSX.Element {
             </button>
           </>
         )}
+      </div>
+      </div>
+      {filterOpen && <div className="media-filter-panel">
+        <label>{t('Type')}<select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>{['all','video','image','clip'].map((v) => <option key={v} value={v}>{t({all:'All',video:'Videos',image:'Images',clip:'Video clips'}[v]!)}</option>)}</select></label>
+        <label>{t('Orientation')}<select value={orientation} onChange={(e) => setOrientation(e.target.value)}>{['all','landscape','portrait','square'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
+        <label>{t('Storage')}<select value={storage} onChange={(e) => setStorage(e.target.value)}>{['all','internal','external'].map((v) => <option key={v} value={v}>{t(v)}</option>)}</select></label>
+        <button className="text-button" onClick={() => { setKind('all'); setOrientation('all'); setStorage('all') }}>{t('Clear filters')}</button>
+      </div>}
+      <div
+        className="media-breadcrumb"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          const id = event.dataTransfer.getData('application/framebook-media')
+          if (id) moveMedia(selected.includes(id) ? selected : [id], current?.parentId ?? null)
+        }}
+      >
+        <button className="text-button" onClick={() => setCurrentFolder(null)}>
+          {t('Media bin')}
+        </button>
+        {trail.map((item) => (
+          <button className="text-button" key={item.id} onClick={() => setCurrentFolder(item.id)}>
+            {' '}
+            / {item.name}
+          </button>
+        ))}
       </div>
       <div className="hint media-result-count">{visibleMedia.length} {t('results')}</div>
       {!!selected.length && (

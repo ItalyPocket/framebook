@@ -42,7 +42,7 @@
   "Label": "名称",
   "SHOT 1A — HERO ENTERS": "镜头 1A — 主角入场",
   "Notes": "备注",
-  "Duration (s)": "预演停留时长（秒）",
+  "Duration (s)": "时长（秒）",
   "Shot": "镜号",
   "Scene": "场景",
   "Size": "景别",
@@ -963,5 +963,8 @@
   "Focal length": "焦段",
   "In point (s)": "入点（秒）",
   "Out point (s)": "出点（秒）",
-  "Reference image": "参考画面"
+  "Reference image": "参考画面",
+  "Anatomy of moving images": "影像结构图谱",
+  "Workspaces": "工作区",
+  "Clear selection": "清除选择"
 }

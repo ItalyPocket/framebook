@@ -18,7 +18,7 @@ import { useFileDrop } from './lib/fileDrop'
 import { ProjectLibrary, SettingsDialog } from './components/ProjectManager'
 import { ActionLabel, TopAction } from './components/TopActions'
 import { Fragment, useCallback, useEffect, useState, useRef } from 'react'
-import { ArtComposition } from './components/ArtComposition'
+import { ArtComposition, WorkspaceGlyph } from './components/ArtComposition'
 import { useStore, currentProjectJson } from './store'
 import { MediaBin } from './panels/MediaBin'
 import { Viewer } from './panels/Viewer'
@@ -57,24 +57,25 @@ export function Credits(): JSX.Element {
   )
 }
 
-function Welcome({ openLibrary, resume }: { openLibrary(): void; resume?: () => void }): JSX.Element {
+type Workspace = 'capture' | 'gallery' | 'storyboard' | 'planning' | 'callsheet' | 'libtv'
+
+function Welcome({ openLibrary, resume, navigate }: { openLibrary(): void; resume?: () => void; navigate(workspace: Workspace): void }): JSX.Element {
   const setHelpOpen = useStore((s) => s.setHelpOpen)
   return (
     <div className="welcome">
-      <ArtComposition variant="welcome" />
       <div className="welcome-title">
-        <span className="eyebrow">01 — A FIELD GUIDE TO MOVING IMAGES</span>
-        <h1>
-          帧册
-          <span>
-            FRAME
-            <br />
-            BOOK<span className="brand-dot">01</span>
-          </span>
-        </h1>
+        <span className="eyebrow">01 / {t('Anatomy of moving images')}</span>
+        <h1>帧册</h1>
+        <span className="welcome-wordmark">FRAMEBOOK / IMAGES IN SEQUENCE</span>
         <div className="welcome-rule" />
       </div>
       <p>{t('Capture a frame. Understand a shot. Build your story.')}</p>
+      <nav className="home-navigation" aria-label={t('Workspaces')}>
+        {(['capture', 'gallery', 'storyboard', 'planning', 'callsheet', 'libtv'] as const).map((value, index) => <button key={value} onClick={() => navigate(value)}>
+          <WorkspaceGlyph index={index} />
+          <span><b>{t({ capture: 'Capture', gallery: 'Frame gallery', storyboard: 'Storyboard editor', planning: 'Shooting plan', callsheet: 'Call sheet', libtv: 'LibTV studio' }[value])}</b><small>{String(index + 1).padStart(2, '0')} / {value === 'capture' ? 'CAPTURE' : value === 'planning' ? 'SHOOTING PLAN' : value === 'callsheet' ? 'CALL SHEET' : value.toUpperCase()}</small></span>
+        </button>)}
+      </nav>
       <div className="actions">
         {resume && <button className="btn primary" onClick={resume}>{t('Continue project')}</button>}
         <button className="btn primary" onClick={openLibrary}>
@@ -359,7 +360,8 @@ export function App(): JSX.Element {
   )
   if (!doc || home) {
     return (
-      <div className={`app welcome-app${introClass}`} data-intro-duration={introDuration} data-language={language}>
+      <div className={`app welcome-app${introClass}`} data-intro-duration={introDuration} data-language={language} data-scene="welcome">
+        <ArtComposition variant="welcome" />
         <div className="titlebar">
           <span className="app-name">帧册 / FRAMEBOOK</span>
           <div className="spacer" />
@@ -367,7 +369,7 @@ export function App(): JSX.Element {
           <TopAction icon="settings" label="Settings" onClick={() => setPanel('settings')} />
           <LanguageSelect />
         </div>
-        <Welcome openLibrary={() => setPanel('library')} resume={doc ? () => setHome(false) : undefined} />
+        <Welcome openLibrary={() => setPanel('library')} resume={doc ? () => setHome(false) : undefined} navigate={value => { if (doc) { useStore.getState().setWorkspace(value); setHome(false) } else setPanel('library') }} />
         {overlays}
         <Toasts />
         <HelpOverlay />
@@ -376,7 +378,8 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className={`app${introClass}`} data-intro-duration={introDuration} data-language={language}>
+    <div className={`app${introClass}`} data-intro-duration={introDuration} data-language={language} data-scene={workspace}>
+      <ArtComposition />
       <div className="titlebar">
         <span className="app-name">帧册 / FRAMEBOOK</span>
         <div className="project-identity">
@@ -429,7 +432,7 @@ export function App(): JSX.Element {
               className={workspace === value ? 'active' : ''}
               onClick={() => useStore.getState().setWorkspace(value)}
             >
-              <span>0{index + 1}</span>
+              <WorkspaceGlyph index={index} /><span>0{index + 1}</span>
               {t(
                 {
                   capture: 'Capture',
